@@ -9,6 +9,7 @@ import SwiftUI
 
 @main
 struct ThingZApp: App {
+    @StateObject private var authManager = AuthManager.shared
     
     init() {
         // 应用启动时请求通知权限
@@ -17,10 +18,16 @@ struct ThingZApp: App {
     
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            RootView()
+                .environmentObject(authManager)
                 .onAppear {
+                    // 检查登录状态
+                    authManager.checkAuthStatus()
+                    
                     // 应用前台时刷新提醒
-                    NotificationManager.shared.refreshAllReminders(for: DataManager.shared.items)
+                    if authManager.isAuthenticated {
+                        NotificationManager.shared.refreshAllReminders(for: DataManager.shared.items)
+                    }
                 }
         }
     }

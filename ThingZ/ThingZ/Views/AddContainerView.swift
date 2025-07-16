@@ -75,7 +75,7 @@ struct AddContainerView: View {
                 }
             }
             .sheet(isPresented: $showingImagePicker) {
-                ImagePicker(image: $selectedImage)
+                ImagePicker(selectedImage: $selectedImage)
             }
         }
     }
