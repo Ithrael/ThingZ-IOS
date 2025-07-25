@@ -28,42 +28,56 @@ struct SearchView: View {
     
     var body: some View {
         NavigationView {
-            VStack(spacing: 0) {
-                // 搜索栏
-                SearchBar(text: $searchText, selectedScope: $selectedScope, scopes: scopes)
+            ZStack {
+                // 背景渐变
+                LinearGradient(
+                    gradient: Gradient(colors: [
+                        Color(red: 1.0, green: 0.97, blue: 0.86), // 奶cream色
+                        Color(red: 1.0, green: 0.95, blue: 0.9)   // 浅桃色
+                    ]),
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
                 
-                // 物品类型筛选
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 12) {
-                        FilterChip(title: "全部", isSelected: selectedItemType == nil) {
-                            selectedItemType = nil
-                        }
-                        
-                        ForEach(ItemType.allCases, id: \.self) { type in
-                            FilterChip(title: type.displayName, isSelected: selectedItemType == type) {
-                                selectedItemType = type
+                VStack(spacing: 0) {
+                    // 搜索栏
+                    SearchBar(text: $searchText, selectedScope: $selectedScope, scopes: scopes)
+                    
+                    // 物品类型筛选
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 12) {
+                            FilterChip(title: "全部", isSelected: selectedItemType == nil) {
+                                selectedItemType = nil
+                            }
+                            
+                            ForEach(ItemType.allCases, id: \.self) { type in
+                                FilterChip(title: type.displayName, isSelected: selectedItemType == type) {
+                                    selectedItemType = type
+                                }
                             }
                         }
+                        .padding(.horizontal, 16)
                     }
-                    .padding(.horizontal)
+                    .padding(.vertical, 12)
+                    
+                    // 搜索结果
+                    if searchText.isEmpty && selectedItemType == nil {
+                        EmptySearchView()
+                    } else {
+                        SearchResultsView(
+                            items: searchResults.items,
+                            containers: searchResults.containers,
+                            showContainers: selectedScope == 0 || selectedScope == 2,
+                            showItems: selectedScope == 0 || selectedScope == 1
+                        )
+                    }
+                    
+                    Spacer()
                 }
-                .padding(.vertical, 8)
-                
-                // 搜索结果
-                if searchText.isEmpty && selectedItemType == nil {
-                    EmptySearchView()
-                } else {
-                    SearchResultsView(
-                        items: searchResults.items,
-                        containers: searchResults.containers,
-                        showContainers: selectedScope == 0 || selectedScope == 2,
-                        showItems: selectedScope == 0 || selectedScope == 1
-                    )
-                }
-                
-                Spacer()
             }
-            .navigationTitle("搜索")
+            .navigationTitle("寻找宝贝 🔍")
+            .navigationBarTitleDisplayMode(.large)
         }
     }
 }
@@ -75,33 +89,70 @@ struct SearchBar: View {
     let scopes: [String]
     
     var body: some View {
-        VStack(spacing: 8) {
-            HStack {
-                Image(systemName: "magnifyingglass")
-                    .foregroundColor(.gray)
+        VStack(spacing: 16) {
+            // 搜索输入框
+            ZStack {
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(Color.white.opacity(0.8))
+                    .shadow(
+                        color: Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.2),
+                        radius: 8,
+                        x: 0,
+                        y: 4
+                    )
                 
-                TextField("搜索物品或容器", text: $text)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                
-                if !text.isEmpty {
-                    Button("清除") {
-                        text = ""
+                HStack(spacing: 12) {
+                    Image(systemName: "heart.magnifyingglass")
+                        .foregroundColor(Color(red: 1.0, green: 0.75, blue: 0.8))
+                        .font(.title3)
+                    
+                    TextField("搜索你的宝贝物品和小窝...", text: $text)
+                        .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
+                    
+                    if !text.isEmpty {
+                        Button("✨") {
+                            text = ""
+                        }
+                        .foregroundColor(Color(red: 1.0, green: 0.8, blue: 0.4))
                     }
-                    .foregroundColor(.blue)
                 }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 16)
             }
-            .padding(.horizontal)
+            .padding(.horizontal, 16)
             
-            Picker("搜索范围", selection: $selectedScope) {
+            // 搜索范围选择
+            HStack(spacing: 12) {
                 ForEach(0..<scopes.count, id: \.self) { index in
-                    Text(scopes[index]).tag(index)
+                    Button(action: {
+                        selectedScope = index
+                    }) {
+                        Text(scopes[index])
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(selectedScope == index ? .white : Color(red: 0.6, green: 0.4, blue: 0.3))
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 10)
+                            .background(
+                                Capsule()
+                                    .fill(selectedScope == index ? 
+                                          Color(red: 1.0, green: 0.75, blue: 0.8) : 
+                                          Color.white.opacity(0.8))
+                                    .shadow(
+                                        color: Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.2),
+                                        radius: selectedScope == index ? 8 : 4,
+                                        x: 0,
+                                        y: selectedScope == index ? 4 : 2
+                                    )
+                            )
+                    }
+                    .scaleEffect(selectedScope == index ? 1.05 : 1.0)
+                    .animation(.easeInOut(duration: 0.2), value: selectedScope)
                 }
             }
-            .pickerStyle(SegmentedPickerStyle())
-            .padding(.horizontal)
+            .padding(.horizontal, 16)
         }
-        .padding(.vertical, 8)
-        .background(Color.gray.opacity(0.1))
+        .padding(.vertical, 16)
     }
 }
 
@@ -115,12 +166,23 @@ struct FilterChip: View {
         Button(action: action) {
             Text(title)
                 .font(.caption)
-                .foregroundColor(isSelected ? .white : .blue)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(isSelected ? Color.blue : Color.blue.opacity(0.1))
-                .cornerRadius(16)
+                .fontWeight(.medium)
+                .foregroundColor(isSelected ? Color(red: 0.8, green: 0.6, blue: 0.2) : Color(red: 0.6, green: 0.4, blue: 0.3))
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(
+                    Capsule()
+                        .fill(isSelected ? Color(red: 1.0, green: 0.9, blue: 0.7) : Color.white.opacity(0.8))
+                        .shadow(
+                            color: Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.2),
+                            radius: isSelected ? 6 : 3,
+                            x: 0,
+                            y: isSelected ? 3 : 1
+                        )
+                )
         }
+        .scaleEffect(isSelected ? 1.05 : 1.0)
+        .animation(.easeInOut(duration: 0.2), value: isSelected)
     }
 }
 
@@ -130,57 +192,89 @@ struct EmptySearchView: View {
     
     var body: some View {
         ScrollView {
-            VStack(spacing: 20) {
+            VStack(spacing: 24) {
                 // 搜索提示
-                VStack(spacing: 8) {
-                    Image(systemName: "magnifyingglass")
-                        .font(.system(size: 50))
-                        .foregroundColor(.gray)
+                VStack(spacing: 20) {
+                    ZStack {
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    gradient: Gradient(colors: [
+                                        Color(red: 1.0, green: 0.9, blue: 0.95),
+                                        Color(red: 1.0, green: 0.85, blue: 0.9)
+                                    ]),
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .frame(width: 100, height: 100)
+                            .shadow(
+                                color: Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.3),
+                                radius: 15,
+                                x: 0,
+                                y: 8
+                            )
+                        
+                        Image(systemName: "heart.magnifyingglass")
+                            .font(.system(size: 40))
+                            .foregroundColor(Color(red: 1.0, green: 0.75, blue: 0.8))
+                    }
                     
-                    Text("输入关键词开始搜索")
-                        .font(.headline)
-                        .foregroundColor(.gray)
-                    
-                    Text("可以搜索物品名称、备注、属性等信息")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
+                    VStack(spacing: 8) {
+                        Text("开始寻找你的宝贝吧 ✨")
+                            .font(.title2)
+                            .fontWeight(.semibold)
+                            .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
+                        
+                        Text("输入关键词来搜索物品或容器")
+                            .font(.subheadline)
+                            .foregroundColor(Color(red: 0.6, green: 0.4, blue: 0.3))
+                            .multilineTextAlignment(.center)
+                    }
                 }
-                .padding()
+                .padding(.top, 30)
                 
                 // 统计信息
                 VStack(spacing: 16) {
-                    Text("数据概览")
+                    Text("数据概览 📊")
                         .font(.headline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
                     
                     LazyVGrid(columns: [
                         GridItem(.flexible()),
                         GridItem(.flexible())
                     ], spacing: 16) {
-                        StatCard(title: "总容器", value: "\(dataManager.totalContainers)", icon: "archivebox")
-                        StatCard(title: "总物品", value: "\(dataManager.totalItems)", icon: "list.bullet")
-                        StatCard(title: "即将过期", value: "\(dataManager.getExpiringSoonItems().count)", icon: "clock")
-                        StatCard(title: "已过期", value: "\(dataManager.getExpiredItems().count)", icon: "exclamationmark.triangle")
+                        StatCard(title: "总容器", value: "\(dataManager.totalContainers)", icon: "archivebox.fill", color: Color(red: 1.0, green: 0.75, blue: 0.8))
+                        StatCard(title: "总物品", value: "\(dataManager.totalItems)", icon: "heart.fill", color: Color(red: 1.0, green: 0.8, blue: 0.4))
+                        StatCard(title: "即将过期", value: "\(dataManager.getExpiringSoonItems().count)", icon: "clock.badge", color: Color(red: 1.0, green: 0.8, blue: 0.4))
+                        StatCard(title: "已过期", value: "\(dataManager.getExpiredItems().count)", icon: "exclamationmark.triangle.fill", color: Color(red: 1.0, green: 0.6, blue: 0.6))
                     }
                 }
-                .padding()
+                .padding(.horizontal, 16)
                 
                 // 最近添加的物品
                 if !dataManager.items.isEmpty {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("最近添加")
-                            .font(.headline)
-                            .padding(.horizontal)
+                    VStack(alignment: .leading, spacing: 16) {
+                        HStack {
+                            Text("最近添加 🆕")
+                                .font(.headline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
+                            Spacer()
+                        }
+                        .padding(.horizontal, 16)
                         
-                        LazyVStack(spacing: 8) {
-                            ForEach(Array(dataManager.items.sorted(by: { $0.createdAt > $1.createdAt }).prefix(5)), id: \.id) { item in
+                        LazyVStack(spacing: 12) {
+                            ForEach(Array(dataManager.items.sorted(by: { $0.createdAt > $1.createdAt }).prefix(3)), id: \.id) { item in
                                 RecentItemRow(item: item)
                             }
                         }
-                        .padding(.horizontal)
+                        .padding(.horizontal, 16)
                     }
                 }
             }
+            .padding(.bottom, 30)
         }
     }
 }
@@ -190,24 +284,55 @@ struct StatCard: View {
     let title: String
     let value: String
     let icon: String
+    let color: Color
     
     var body: some View {
-        VStack(spacing: 8) {
-            Image(systemName: icon)
-                .font(.title2)
-                .foregroundColor(.blue)
+        VStack(spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                color.opacity(0.8),
+                                color.opacity(0.6)
+                            ]),
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 50, height: 50)
+                    .shadow(
+                        color: color.opacity(0.3),
+                        radius: 8,
+                        x: 0,
+                        y: 4
+                    )
+                
+                Image(systemName: icon)
+                    .font(.title3)
+                    .foregroundColor(.white)
+            }
             
             Text(value)
                 .font(.title2)
                 .fontWeight(.bold)
+                .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
             
             Text(title)
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(Color(red: 0.6, green: 0.4, blue: 0.3))
         }
-        .padding()
-        .background(Color.gray.opacity(0.1))
-        .cornerRadius(12)
+        .padding(.all, 20)
+        .background(
+            RoundedRectangle(cornerRadius: 18)
+                .fill(Color.white.opacity(0.8))
+                .shadow(
+                    color: Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.2),
+                    radius: 8,
+                    x: 0,
+                    y: 4
+                )
+        )
     }
 }
 
@@ -222,30 +347,73 @@ struct RecentItemRow: View {
     }
     
     var body: some View {
-        HStack {
-            Image(systemName: item.type.icon)
-                .foregroundColor(.blue)
-                .frame(width: 30)
+        HStack(spacing: 16) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color(red: 1.0, green: 0.82, blue: 0.86),
+                                Color(red: 1.0, green: 0.75, blue: 0.8)
+                            ]),
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 50, height: 50)
+                    .shadow(
+                        color: Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.3),
+                        radius: 6,
+                        x: 0,
+                        y: 3
+                    )
+                
+                Image(systemName: item.type.icon)
+                    .foregroundColor(.white)
+                    .font(.title3)
+            }
             
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(item.name)
                     .font(.subheadline)
-                    .fontWeight(.medium)
+                    .fontWeight(.semibold)
+                    .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
                 
                 if let container = container {
-                    Text("位于：\(container.name)")
+                    Text("住在：\(container.name) 🏠")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color(red: 0.6, green: 0.4, blue: 0.3))
                 }
+                
+                Text(item.type.displayName)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 2)
+                    .background(
+                        Capsule()
+                            .fill(Color(red: 1.0, green: 0.9, blue: 0.7))
+                    )
+                    .foregroundColor(Color(red: 0.8, green: 0.6, blue: 0.2))
             }
             
             Spacer()
             
             Text(RelativeDateTimeFormatter().localizedString(for: item.createdAt, relativeTo: Date()))
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(Color(red: 0.6, green: 0.4, blue: 0.3))
         }
-        .padding(.vertical, 4)
+        .padding(.all, 16)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.white.opacity(0.8))
+                .shadow(
+                    color: Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.2),
+                    radius: 6,
+                    x: 0,
+                    y: 3
+                )
+        )
     }
 }
 
@@ -257,43 +425,91 @@ struct SearchResultsView: View {
     let showItems: Bool
     
     var body: some View {
-        List {
-            if showContainers && !containers.isEmpty {
-                Section("容器 (\(containers.count))") {
-                    ForEach(containers, id: \.id) { container in
-                        NavigationLink(destination: ContainerDetailView(container: container)) {
-                            ContainerSearchRow(container: container)
+        ScrollView {
+            LazyVStack(spacing: 16) {
+                if showContainers && !containers.isEmpty {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Text("容器 (\(containers.count))")
+                                .font(.headline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
+                            Spacer()
+                        }
+                        .padding(.horizontal, 16)
+                        
+                        ForEach(containers, id: \.id) { container in
+                            NavigationLink(destination: ContainerDetailView(container: container)) {
+                                ContainerSearchRow(container: container)
+                            }
+                            .buttonStyle(PlainButtonStyle())
                         }
                     }
                 }
-            }
-            
-            if showItems && !items.isEmpty {
-                Section("物品 (\(items.count))") {
-                    ForEach(items, id: \.id) { item in
-                        NavigationLink(destination: ItemDetailView(item: item)) {
-                            ItemSearchRow(item: item)
+                
+                if showItems && !items.isEmpty {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Text("物品 (\(items.count))")
+                                .font(.headline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
+                            Spacer()
+                        }
+                        .padding(.horizontal, 16)
+                        
+                        ForEach(items, id: \.id) { item in
+                            NavigationLink(destination: ItemDetailView(item: item)) {
+                                ItemSearchRow(item: item)
+                            }
+                            .buttonStyle(PlainButtonStyle())
                         }
                     }
                 }
-            }
-            
-            if (showContainers && containers.isEmpty) && (showItems && items.isEmpty) {
-                Section {
-                    HStack {
-                        Spacer()
+                
+                if (showContainers && containers.isEmpty) && (showItems && items.isEmpty) {
+                    VStack(spacing: 20) {
+                        ZStack {
+                            Circle()
+                                .fill(
+                                    LinearGradient(
+                                        gradient: Gradient(colors: [
+                                            Color(red: 1.0, green: 0.9, blue: 0.95),
+                                            Color(red: 1.0, green: 0.85, blue: 0.9)
+                                        ]),
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .frame(width: 80, height: 80)
+                                .shadow(
+                                    color: Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.3),
+                                    radius: 12,
+                                    x: 0,
+                                    y: 6
+                                )
+                            
+                            Image(systemName: "questionmark.circle")
+                                .font(.system(size: 35))
+                                .foregroundColor(Color(red: 1.0, green: 0.75, blue: 0.8))
+                        }
+                        
                         VStack(spacing: 8) {
-                            Image(systemName: "magnifyingglass")
-                                .font(.title)
-                                .foregroundColor(.gray)
-                            Text("未找到相关结果")
-                                .foregroundColor(.gray)
+                            Text("没有找到相关结果 😢")
+                                .font(.headline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
+                            
+                            Text("试试换个关键词吧～")
+                                .font(.subheadline)
+                                .foregroundColor(Color(red: 0.6, green: 0.4, blue: 0.3))
                         }
-                        Spacer()
                     }
-                    .padding()
+                    .padding(.top, 50)
                 }
             }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 30)
         }
     }
 }
@@ -308,31 +524,95 @@ struct ContainerSearchRow: View {
     }
     
     var body: some View {
-        HStack {
-            Image(systemName: container.type.icon)
-                .foregroundColor(.blue)
-                .frame(width: 30)
+        HStack(spacing: 16) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color(red: 1.0, green: 0.82, blue: 0.86),
+                                Color(red: 1.0, green: 0.75, blue: 0.8)
+                            ]),
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 60, height: 60)
+                    .shadow(
+                        color: Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.3),
+                        radius: 8,
+                        x: 0,
+                        y: 4
+                    )
+                
+                Image(systemName: container.type.icon)
+                    .foregroundColor(.white)
+                    .font(.title2)
+            }
             
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 6) {
                 Text(container.name)
                     .font(.headline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
                 
-                Text("\(container.type.displayName) · \(container.location)")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                Text(container.location)
+                    .font(.subheadline)
+                    .foregroundColor(Color(red: 0.6, green: 0.4, blue: 0.3))
                 
-                Text("\(itemCount)/\(container.capacity) 物品")
-                    .font(.caption)
-                    .foregroundColor(.blue)
+                HStack(spacing: 8) {
+                    Text(container.type.displayName)
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                        .background(
+                            Capsule()
+                                .fill(Color(red: 1.0, green: 0.9, blue: 0.7))
+                        )
+                        .foregroundColor(Color(red: 0.8, green: 0.6, blue: 0.2))
+                    
+                    Text("\(itemCount)/\(container.capacity)")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundColor(Color(red: 0.6, green: 0.4, blue: 0.3))
+                }
             }
             
             Spacer()
             
-            if container.capacityUtilization > 0.8 {
-                Image(systemName: "exclamationmark.triangle")
-                    .foregroundColor(.orange)
+            VStack {
+                let utilization = container.capacity > 0 ? Double(itemCount) / Double(container.capacity) : 0
+                
+                ZStack {
+                    Circle()
+                        .stroke(Color(red: 1.0, green: 0.9, blue: 0.95), lineWidth: 3)
+                    
+                    Circle()
+                        .trim(from: 0, to: utilization)
+                        .stroke(
+                            utilization > 0.8 ? Color(red: 1.0, green: 0.6, blue: 0.6) :
+                            utilization > 0.6 ? Color(red: 1.0, green: 0.8, blue: 0.4) :
+                            Color(red: 0.7, green: 0.9, blue: 0.7),
+                            style: StrokeStyle(lineWidth: 3, lineCap: .round)
+                        )
+                        .rotationEffect(.degrees(-90))
+                        .animation(.easeInOut(duration: 1.0), value: utilization)
+                }
+                .frame(width: 30, height: 30)
             }
         }
+        .padding(.all, 16)
+        .background(
+            RoundedRectangle(cornerRadius: 18)
+                .fill(Color.white.opacity(0.8))
+                .shadow(
+                    color: Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.2),
+                    radius: 8,
+                    x: 0,
+                    y: 4
+                )
+        )
     }
 }
 
@@ -347,45 +627,99 @@ struct ItemSearchRow: View {
     }
     
     var body: some View {
-        HStack {
-            Image(systemName: item.type.icon)
-                .foregroundColor(.blue)
-                .frame(width: 30)
+        HStack(spacing: 16) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color(red: 1.0, green: 0.82, blue: 0.86),
+                                Color(red: 1.0, green: 0.75, blue: 0.8)
+                            ]),
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 60, height: 60)
+                    .shadow(
+                        color: Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.3),
+                        radius: 8,
+                        x: 0,
+                        y: 4
+                    )
+                
+                Image(systemName: item.type.icon)
+                    .foregroundColor(.white)
+                    .font(.title2)
+            }
             
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 6) {
                 Text(item.name)
                     .font(.headline)
-                
-                Text(item.type.displayName)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .fontWeight(.semibold)
+                    .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
                 
                 if let container = container {
-                    Text("位于：\(container.name)")
-                        .font(.caption)
-                        .foregroundColor(.blue)
+                    Text("住在：\(container.name) 🏠")
+                        .font(.subheadline)
+                        .foregroundColor(Color(red: 0.6, green: 0.4, blue: 0.3))
                 }
                 
-                if !item.notes.isEmpty {
-                    Text(item.notes)
+                HStack(spacing: 8) {
+                    Text(item.type.displayName)
                         .font(.caption)
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
+                        .fontWeight(.medium)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                        .background(
+                            Capsule()
+                                .fill(Color(red: 1.0, green: 0.9, blue: 0.7))
+                        )
+                        .foregroundColor(Color(red: 0.8, green: 0.6, blue: 0.2))
+                    
+                    if item.isExpired {
+                        Text("已过期 😢")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 2)
+                            .background(
+                                Capsule()
+                                    .fill(Color(red: 1.0, green: 0.6, blue: 0.6))
+                            )
+                            .foregroundColor(.white)
+                    } else if item.isExpiringSoon {
+                        Text("快过期啦 ⏰")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 2)
+                            .background(
+                                Capsule()
+                                    .fill(Color(red: 1.0, green: 0.8, blue: 0.4))
+                            )
+                            .foregroundColor(.white)
+                    }
                 }
             }
             
             Spacer()
             
-            VStack(spacing: 2) {
-                if item.isExpired {
-                    Image(systemName: "exclamationmark.triangle")
-                        .foregroundColor(.red)
-                } else if item.isExpiringSoon {
-                    Image(systemName: "clock")
-                        .foregroundColor(.orange)
-                }
-            }
+            Image(systemName: "chevron.right")
+                .foregroundColor(Color(red: 1.0, green: 0.75, blue: 0.8))
+                .font(.caption)
         }
+        .padding(.all, 16)
+        .background(
+            RoundedRectangle(cornerRadius: 18)
+                .fill(Color.white.opacity(0.8))
+                .shadow(
+                    color: Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.2),
+                    radius: 8,
+                    x: 0,
+                    y: 4
+                )
+        )
     }
 }
 
