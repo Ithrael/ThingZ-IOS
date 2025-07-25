@@ -25,20 +25,27 @@ struct LoginResponse: Codable {
     let code: Int
     let message: String
     let data: LoginData?
+    let timestamp: Int64?
     
     struct LoginData: Codable {
-        let token: String
+        let accessToken: String
+        let refreshToken: String
+        let tokenType: String
+        let expiresIn: Int
         let user: APIUser
     }
     
     struct APIUser: Codable {
-        let id: Int
-        let phone: String
+        let id: String
         let username: String?
+        let phone: String
         let email: String?
-        let avatar: String?
+        let avatarUrl: String?
+        let nick: String?
+        let status: String?
         let createdAt: String?
         let updatedAt: String?
+        let isDeleted: String?
     }
 }
 
@@ -208,14 +215,14 @@ class AuthManager: ObservableObject {
                 
                 if loginResponse.code == 200, let loginData = loginResponse.data {
                     // 保存token
-                    self.authToken = loginData.token
+                    self.authToken = loginData.accessToken
                     
                     // 创建用户对象
                     let user = User(
                         username: loginData.user.username ?? loginData.user.phone,
                         email: loginData.user.email,
                         phoneNumber: loginData.user.phone,
-                        avatar: loginData.user.avatar,
+                        avatar: loginData.user.avatarUrl,
                         loginMethod: .username
                     )
                     
