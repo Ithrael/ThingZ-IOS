@@ -12,94 +12,211 @@ struct ItemDetailView: View {
     
     var body: some View {
         NavigationView {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    // 物品图片
-                    if let image = item.image {
-                        Image(uiImage: image)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(maxHeight: 300)
-                            .cornerRadius(12)
-                    } else {
-                        Image(systemName: item.type.icon)
-                            .font(.system(size: 100))
-                            .foregroundColor(.blue)
-                            .frame(height: 200)
-                            .frame(maxWidth: .infinity)
-                            .background(Color.blue.opacity(0.1))
-                            .cornerRadius(12)
-                    }
-                    
-                    // 基本信息
-                    VStack(alignment: .leading, spacing: 16) {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 4) {
+            ZStack {
+                // 背景渐变
+                LinearGradient(
+                    gradient: Gradient(colors: [
+                        Color(red: 1.0, green: 0.97, blue: 0.86), // 奶cream色
+                        Color(red: 1.0, green: 0.95, blue: 0.9)   // 浅桃色
+                    ]),
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
+                
+                ScrollView {
+                    VStack(spacing: 24) {
+                        // 物品图片
+                        VStack(spacing: 16) {
+                            if let image = item.image {
+                                Image(uiImage: image)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(maxHeight: 300)
+                                    .cornerRadius(20)
+                                    .shadow(
+                                        color: Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.3),
+                                        radius: 15,
+                                        x: 0,
+                                        y: 8
+                                    )
+                            } else {
+                                ZStack {
+                                    RoundedRectangle(cornerRadius: 20)
+                                        .fill(
+                                            LinearGradient(
+                                                gradient: Gradient(colors: [
+                                                    Color(red: 1.0, green: 0.9, blue: 0.95),
+                                                    Color(red: 1.0, green: 0.85, blue: 0.9)
+                                                ]),
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            )
+                                        )
+                                        .frame(height: 200)
+                                        .shadow(
+                                            color: Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.3),
+                                            radius: 15,
+                                            x: 0,
+                                            y: 8
+                                        )
+                                    
+                                    Image(systemName: item.type.icon)
+                                        .font(.system(size: 60))
+                                        .foregroundColor(Color(red: 1.0, green: 0.75, blue: 0.8))
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.top, 20)
+                        
+                        // 基本信息
+                        VStack(spacing: 20) {
+                            // 标题和状态
+                            VStack(spacing: 12) {
                                 Text(item.name)
                                     .font(.title2)
                                     .fontWeight(.bold)
+                                    .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
                                 
-                                Text(item.type.displayName)
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
+                                HStack(spacing: 12) {
+                                    Text(item.type.displayName)
+                                        .font(.subheadline)
+                                        .fontWeight(.medium)
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 6)
+                                        .background(
+                                            Capsule()
+                                                .fill(Color(red: 1.0, green: 0.9, blue: 0.7))
+                                        )
+                                        .foregroundColor(Color(red: 0.8, green: 0.6, blue: 0.2))
+                                    
+                                    // 过期状态
+                                    if item.isExpired {
+                                        Text("已过期 😢")
+                                            .font(.subheadline)
+                                            .fontWeight(.medium)
+                                            .padding(.horizontal, 12)
+                                            .padding(.vertical, 6)
+                                            .background(
+                                                Capsule()
+                                                    .fill(Color(red: 1.0, green: 0.6, blue: 0.6))
+                                            )
+                                            .foregroundColor(.white)
+                                    } else if item.isExpiringSoon {
+                                        Text("快过期啦 ⏰")
+                                            .font(.subheadline)
+                                            .fontWeight(.medium)
+                                            .padding(.horizontal, 12)
+                                            .padding(.vertical, 6)
+                                            .background(
+                                                Capsule()
+                                                    .fill(Color(red: 1.0, green: 0.8, blue: 0.4))
+                                            )
+                                            .foregroundColor(.white)
+                                    }
+                                }
                             }
                             
-                            Spacer()
+                            // 位置信息
+                            if let container = container {
+                                HStack(spacing: 12) {
+                                    ZStack {
+                                        Circle()
+                                            .fill(
+                                                LinearGradient(
+                                                    gradient: Gradient(colors: [
+                                                        Color(red: 0.7, green: 0.9, blue: 0.9),
+                                                        Color(red: 0.6, green: 0.8, blue: 0.8)
+                                                    ]),
+                                                    startPoint: .topLeading,
+                                                    endPoint: .bottomTrailing
+                                                )
+                                            )
+                                            .frame(width: 40, height: 40)
+                                            .shadow(
+                                                color: Color(red: 0.7, green: 0.9, blue: 0.9).opacity(0.3),
+                                                radius: 6,
+                                                x: 0,
+                                                y: 3
+                                            )
+                                        
+                                        Image(systemName: container.type.icon)
+                                            .font(.title3)
+                                            .foregroundColor(.white)
+                                    }
+                                    
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("住在：\(container.name) 🏠")
+                                            .font(.subheadline)
+                                            .fontWeight(.medium)
+                                            .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
+                                        
+                                        Text(container.location)
+                                            .font(.caption)
+                                            .foregroundColor(Color(red: 0.6, green: 0.4, blue: 0.3))
+                                    }
+                                    
+                                    Spacer()
+                                }
+                            }
                             
-                            // 过期状态
-                            if item.isExpired {
-                                Label("已过期", systemImage: "exclamationmark.triangle")
-                                    .foregroundColor(.red)
-                                    .font(.caption)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(Color.red.opacity(0.1))
-                                    .cornerRadius(8)
-                            } else if item.isExpiringSoon {
-                                Label("即将过期", systemImage: "clock")
-                                    .foregroundColor(.orange)
-                                    .font(.caption)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(Color.orange.opacity(0.1))
-                                    .cornerRadius(8)
+                            // 备注
+                            if !item.notes.isEmpty {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    HStack {
+                                        Text("备注 📝")
+                                            .font(.headline)
+                                            .fontWeight(.semibold)
+                                            .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
+                                        Spacer()
+                                    }
+                                    
+                                    Text(item.notes)
+                                        .font(.body)
+                                        .foregroundColor(Color(red: 0.6, green: 0.4, blue: 0.3))
+                                        .padding(.all, 16)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 12)
+                                                .fill(Color.white.opacity(0.6))
+                                                .shadow(
+                                                    color: Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.1),
+                                                    radius: 5,
+                                                    x: 0,
+                                                    y: 2
+                                                )
+                                        )
+                                }
                             }
                         }
+                        .padding(.all, 20)
+                        .background(
+                            RoundedRectangle(cornerRadius: 20)
+                                .fill(Color.white.opacity(0.8))
+                                .shadow(
+                                    color: Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.2),
+                                    radius: 10,
+                                    x: 0,
+                                    y: 5
+                                )
+                        )
+                        .padding(.horizontal, 20)
                         
-                        if let container = container {
-                            HStack {
-                                Image(systemName: container.type.icon)
-                                    .foregroundColor(.blue)
-                                Text("位于：\(container.name)")
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                        
-                        if !item.notes.isEmpty {
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("备注")
-                                    .font(.headline)
-                                Text(item.notes)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
+                        // 特有属性
+                        getPropertiesView()
                     }
-                    .padding()
-                    .background(Color.gray.opacity(0.1))
-                    .cornerRadius(12)
-                    
-                    // 特有属性
-                    getPropertiesView()
+                    .padding(.bottom, 30)
                 }
-                .padding()
             }
-            .navigationTitle("物品详情")
+            .navigationTitle("宝贝详情 💎")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("完成") {
                         presentationMode.wrappedValue.dismiss()
                     }
+                    .foregroundColor(Color(red: 1.0, green: 0.75, blue: 0.8))
+                    .fontWeight(.medium)
                 }
             }
         }
@@ -134,23 +251,37 @@ struct ClothingPropertiesDetail: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("衣物属性")
-                .font(.headline)
+            HStack {
+                Text("衣物属性 👔")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
+                Spacer()
+            }
             
             LazyVGrid(columns: [
                 GridItem(.flexible()),
                 GridItem(.flexible())
             ], spacing: 12) {
-                PropertyCard(title: "类型", value: properties.clothingType.displayName)
-                PropertyCard(title: "季节", value: properties.season.displayName)
-                PropertyCard(title: "颜色", value: properties.color.isEmpty ? "未设置" : properties.color)
-                PropertyCard(title: "材质", value: properties.material.isEmpty ? "未设置" : properties.material)
-                PropertyCard(title: "品牌", value: properties.brand.isEmpty ? "未设置" : properties.brand)
+                DetailPropertyCard(title: "类型", value: properties.clothingType.displayName, icon: "tshirt.fill")
+                DetailPropertyCard(title: "季节", value: properties.season.displayName, icon: "sun.max.fill")
+                DetailPropertyCard(title: "颜色", value: properties.color.isEmpty ? "未设置" : properties.color, icon: "paintpalette.fill")
+                DetailPropertyCard(title: "材质", value: properties.material.isEmpty ? "未设置" : properties.material, icon: "leaf.fill")
+                DetailPropertyCard(title: "品牌", value: properties.brand.isEmpty ? "未设置" : properties.brand, icon: "tag.fill")
             }
         }
-        .padding()
-        .background(Color.gray.opacity(0.1))
-        .cornerRadius(12)
+        .padding(.all, 20)
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(Color.white.opacity(0.8))
+                .shadow(
+                    color: Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.2),
+                    radius: 10,
+                    x: 0,
+                    y: 5
+                )
+        )
+        .padding(.horizontal, 20)
     }
 }
 
@@ -160,23 +291,37 @@ struct FoodPropertiesDetail: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("食品属性")
-                .font(.headline)
+            HStack {
+                Text("食品属性 🍎")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
+                Spacer()
+            }
             
             LazyVGrid(columns: [
                 GridItem(.flexible()),
                 GridItem(.flexible())
             ], spacing: 12) {
-                PropertyCard(title: "保质期", value: DateFormatter.localizedString(from: properties.expirationDate, dateStyle: .medium, timeStyle: .none))
-                PropertyCard(title: "数量", value: "\(properties.quantity) \(properties.unit)")
-                PropertyCard(title: "类型", value: properties.foodType.displayName)
-                PropertyCard(title: "存放条件", value: properties.storageCondition.isEmpty ? "未设置" : properties.storageCondition)
-                PropertyCard(title: "剩余天数", value: "\(properties.daysUntilExpiration)天")
+                DetailPropertyCard(title: "保质期", value: DateFormatter.localizedString(from: properties.expirationDate, dateStyle: .medium, timeStyle: .none), icon: "calendar")
+                DetailPropertyCard(title: "数量", value: "\(properties.quantity) \(properties.unit)", icon: "number")
+                DetailPropertyCard(title: "类型", value: properties.foodType.displayName, icon: "fork.knife")
+                DetailPropertyCard(title: "存放条件", value: properties.storageCondition.isEmpty ? "未设置" : properties.storageCondition, icon: "thermometer")
+                DetailPropertyCard(title: "剩余天数", value: "\(properties.daysUntilExpiration)天", icon: "clock.fill")
             }
         }
-        .padding()
-        .background(Color.gray.opacity(0.1))
-        .cornerRadius(12)
+        .padding(.all, 20)
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(Color.white.opacity(0.8))
+                .shadow(
+                    color: Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.2),
+                    radius: 10,
+                    x: 0,
+                    y: 5
+                )
+        )
+        .padding(.horizontal, 20)
     }
 }
 
@@ -186,31 +331,45 @@ struct CosmeticsPropertiesDetail: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("化妆品属性")
-                .font(.headline)
+            HStack {
+                Text("化妆品属性 💄")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
+                Spacer()
+            }
             
             LazyVGrid(columns: [
                 GridItem(.flexible()),
                 GridItem(.flexible())
             ], spacing: 12) {
-                PropertyCard(title: "类型", value: properties.cosmeticsType.displayName)
-                PropertyCard(title: "品牌", value: properties.brand.isEmpty ? "未设置" : properties.brand)
+                DetailPropertyCard(title: "类型", value: properties.cosmeticsType.displayName, icon: "sparkles")
+                DetailPropertyCard(title: "品牌", value: properties.brand.isEmpty ? "未设置" : properties.brand, icon: "tag.fill")
                 
                 if let openedDate = properties.openedDate {
-                    PropertyCard(title: "开封日期", value: DateFormatter.localizedString(from: openedDate, dateStyle: .medium, timeStyle: .none))
-                    PropertyCard(title: "开封保质期", value: "\(properties.shelfLifeAfterOpening)个月")
+                    DetailPropertyCard(title: "开封日期", value: DateFormatter.localizedString(from: openedDate, dateStyle: .medium, timeStyle: .none), icon: "calendar")
+                    DetailPropertyCard(title: "开封保质期", value: "\(properties.shelfLifeAfterOpening)个月", icon: "clock.fill")
                     
                     if let expirationDate = properties.expirationDate {
-                        PropertyCard(title: "过期日期", value: DateFormatter.localizedString(from: expirationDate, dateStyle: .medium, timeStyle: .none))
+                        DetailPropertyCard(title: "过期日期", value: DateFormatter.localizedString(from: expirationDate, dateStyle: .medium, timeStyle: .none), icon: "exclamationmark.triangle.fill")
                     }
                 } else {
-                    PropertyCard(title: "开封状态", value: "未开封")
+                    DetailPropertyCard(title: "开封状态", value: "未开封", icon: "checkmark.seal.fill")
                 }
             }
         }
-        .padding()
-        .background(Color.gray.opacity(0.1))
-        .cornerRadius(12)
+        .padding(.all, 20)
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(Color.white.opacity(0.8))
+                .shadow(
+                    color: Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.2),
+                    radius: 10,
+                    x: 0,
+                    y: 5
+                )
+        )
+        .padding(.horizontal, 20)
     }
 }
 
@@ -220,47 +379,99 @@ struct MiscellaneousPropertiesDetail: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("杂物属性")
-                .font(.headline)
+            HStack {
+                Text("杂物属性 📎")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
+                Spacer()
+            }
             
             LazyVGrid(columns: [
                 GridItem(.flexible()),
                 GridItem(.flexible())
             ], spacing: 12) {
-                PropertyCard(title: "类别", value: properties.category.isEmpty ? "未设置" : properties.category)
-                PropertyCard(title: "品牌", value: properties.brand.isEmpty ? "未设置" : properties.brand)
-                PropertyCard(title: "型号", value: properties.model.isEmpty ? "未设置" : properties.model)
+                DetailPropertyCard(title: "类别", value: properties.category.isEmpty ? "未设置" : properties.category, icon: "folder.fill")
+                DetailPropertyCard(title: "品牌", value: properties.brand.isEmpty ? "未设置" : properties.brand, icon: "tag.fill")
+                DetailPropertyCard(title: "型号", value: properties.model.isEmpty ? "未设置" : properties.model, icon: "barcode")
                 
                 if let purchaseDate = properties.purchaseDate {
-                    PropertyCard(title: "购买日期", value: DateFormatter.localizedString(from: purchaseDate, dateStyle: .medium, timeStyle: .none))
+                    DetailPropertyCard(title: "购买日期", value: DateFormatter.localizedString(from: purchaseDate, dateStyle: .medium, timeStyle: .none), icon: "calendar")
                 }
             }
         }
-        .padding()
-        .background(Color.gray.opacity(0.1))
-        .cornerRadius(12)
+        .padding(.all, 20)
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(Color.white.opacity(0.8))
+                .shadow(
+                    color: Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.2),
+                    radius: 10,
+                    x: 0,
+                    y: 5
+                )
+        )
+        .padding(.horizontal, 20)
     }
 }
 
-// 属性卡片
-struct PropertyCard: View {
+// 详情属性卡片
+struct DetailPropertyCard: View {
     let title: String
     let value: String
+    let icon: String
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title)
-                .font(.caption)
-                .foregroundColor(.secondary)
+        VStack(spacing: 8) {
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color(red: 1.0, green: 0.9, blue: 0.7),
+                                Color(red: 1.0, green: 0.8, blue: 0.6)
+                            ]),
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 35, height: 35)
+                    .shadow(
+                        color: Color(red: 1.0, green: 0.8, blue: 0.6).opacity(0.3),
+                        radius: 5,
+                        x: 0,
+                        y: 2
+                    )
+                
+                Image(systemName: icon)
+                    .font(.caption)
+                    .foregroundColor(.white)
+            }
             
-            Text(value)
-                .font(.body)
-                .foregroundColor(.primary)
+            VStack(spacing: 4) {
+                Text(title)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundColor(Color(red: 0.6, green: 0.4, blue: 0.3))
+                
+                Text(value)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
+                    .multilineTextAlignment(.center)
+            }
         }
-        .padding()
-        .background(Color.white)
-        .cornerRadius(8)
-        .shadow(radius: 1)
+        .padding(.all, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.white.opacity(0.6))
+                .shadow(
+                    color: Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.1),
+                    radius: 3,
+                    x: 0,
+                    y: 1
+                )
+        )
     }
 }
 
