@@ -61,49 +61,137 @@ struct ItemListView: View {
     
     var body: some View {
         NavigationView {
-            VStack {
+            ZStack {
+                // 背景渐变
+                LinearGradient(
+                    gradient: Gradient(colors: [
+                        Color(red: 1.0, green: 0.97, blue: 0.86), // 奶cream色
+                        Color(red: 1.0, green: 0.95, blue: 0.9)   // 浅桃色
+                    ]),
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
+                
+                VStack(spacing: 16) {
                 // 搜索栏
+                    HStack(spacing: 12) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 20)
+                                .fill(Color.white.opacity(0.8))
+                                .shadow(
+                                    color: Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.2),
+                                    radius: 8,
+                                    x: 0,
+                                    y: 4
+                                )
+                            
                 HStack {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundColor(.gray)
+                                Image(systemName: "heart.magnifyingglass")
+                                    .foregroundColor(Color(red: 1.0, green: 0.75, blue: 0.8))
+                                    .font(.title3)
                     
-                    TextField("搜索物品...", text: $searchText)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                                TextField("寻找你的宝贝物品...", text: $searchText)
+                                    .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
                     
                     if !searchText.isEmpty {
-                        Button("清除") {
+                                    Button("✨") {
                             searchText = ""
                         }
-                        .foregroundColor(.blue)
+                                    .foregroundColor(Color(red: 1.0, green: 0.8, blue: 0.4))
                     }
                 }
-                .padding(.horizontal)
-                
-                // 筛选和排序控件
-                HStack {
-                    Picker("筛选", selection: $filterBy) {
-                        ForEach(FilterOption.allCases, id: \.self) { option in
-                            Text(option.displayName).tag(option)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
                         }
                     }
-                    .pickerStyle(MenuPickerStyle())
+                    .padding(.horizontal, 16)
+                
+                // 筛选和排序控件
+                    HStack(spacing: 16) {
+                        Menu {
+                        ForEach(FilterOption.allCases, id: \.self) { option in
+                                Button(action: {
+                                    filterBy = option
+                                }) {
+                                    HStack {
+                                        Text(option.displayName)
+                                        if filterBy == option {
+                                            Image(systemName: "checkmark")
+                        }
+                    }
+                                }
+                            }
+                        } label: {
+                            HStack {
+                                Text("筛选: \(filterBy.displayName)")
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                                Image(systemName: "chevron.down")
+                                    .font(.caption)
+                            }
+                            .foregroundColor(Color(red: 0.6, green: 0.4, blue: 0.3))
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background(
+                                Capsule()
+                                    .fill(Color.white.opacity(0.8))
+                                    .shadow(
+                                        color: Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.2),
+                                        radius: 5,
+                                        x: 0,
+                                        y: 2
+                                    )
+                            )
+                        }
                     
                     Spacer()
                     
-                    Picker("排序", selection: $sortBy) {
+                        Menu {
                         ForEach(SortOption.allCases, id: \.self) { option in
-                            Text(option.displayName).tag(option)
+                                Button(action: {
+                                    sortBy = option
+                                }) {
+                                    HStack {
+                                        Text(option.displayName)
+                                        if sortBy == option {
+                                            Image(systemName: "checkmark")
                         }
                     }
-                    .pickerStyle(MenuPickerStyle())
+                                }
+                            }
+                        } label: {
+                            HStack {
+                                Text("排序: \(sortBy.displayName)")
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                                Image(systemName: "chevron.down")
+                                    .font(.caption)
+                            }
+                            .foregroundColor(Color(red: 0.6, green: 0.4, blue: 0.3))
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background(
+                                Capsule()
+                                    .fill(Color.white.opacity(0.8))
+                                    .shadow(
+                                        color: Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.2),
+                                        radius: 5,
+                                        x: 0,
+                                        y: 2
+                                    )
+                            )
+                        }
                 }
-                .padding(.horizontal)
+                    .padding(.horizontal, 16)
                 
                 // 物品列表
                 if filteredItems.isEmpty {
                     ItemEmptyStateView()
+                            .padding(.top, 50)
                 } else {
-                    List {
+                        ScrollView {
+                            LazyVStack(spacing: 12) {
                         ForEach(filteredItems, id: \.id) { item in
                             Button(action: {
                                 selectedItem = item
@@ -113,17 +201,27 @@ struct ItemListView: View {
                             }
                             .buttonStyle(PlainButtonStyle())
                         }
+                            }
+                            .padding(.horizontal, 16)
                     }
                 }
                 
                 Spacer()
             }
-            .navigationTitle("物品列表")
-            .navigationBarItems(trailing: Button(action: {
+            }
+            .navigationTitle("宝贝收藏 💝")
+            .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: {
                 showingAddItem = true
             }) {
-                Image(systemName: "plus")
-            })
+                        Image(systemName: "heart.fill")
+                            .foregroundColor(Color(red: 1.0, green: 0.75, blue: 0.8))
+                            .font(.title2)
+                    }
+                }
+            }
             .sheet(isPresented: $showingAddItem) {
                 AddItemView()
             }
@@ -159,66 +257,90 @@ struct ItemRowView: View {
     }
     
     var body: some View {
-        HStack {
+        HStack(spacing: 16) {
             // 物品图片或图标
+            ZStack {
             if let image = item.image {
                 Image(uiImage: image)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
-                    .frame(width: 50, height: 50)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .background(isClothingInWardrobe ? Color.purple.opacity(0.2) : Color.clear)
+                        .frame(width: 60, height: 60)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
             } else {
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(
+                            LinearGradient(
+                                gradient: Gradient(colors: [
+                                    isClothingInWardrobe ? Color(red: 0.85, green: 0.7, blue: 0.9) : Color(red: 1.0, green: 0.82, blue: 0.86),
+                                    isClothingInWardrobe ? Color(red: 0.75, green: 0.6, blue: 0.85) : Color(red: 1.0, green: 0.75, blue: 0.8)
+                                ]),
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 60, height: 60)
+                        .shadow(
+                            color: (isClothingInWardrobe ? Color.purple : Color(red: 1.0, green: 0.75, blue: 0.8)).opacity(0.3),
+                            radius: 8,
+                            x: 0,
+                            y: 4
+                        )
+                    
                 Image(systemName: item.type.icon)
                     .font(.title2)
-                    .foregroundColor(isClothingInWardrobe ? .purple : .blue)
-                    .frame(width: 50, height: 50)
-                    .background(isClothingInWardrobe ? Color.purple.opacity(0.1) : Color.blue.opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .foregroundColor(.white)
+                }
             }
             
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 6) {
                 Text(item.name)
                     .font(.headline)
-                    .foregroundColor(isClothingInWardrobe ? .purple : .primary)
-                    .fontWeight(isClothingInWardrobe ? .semibold : .regular)
+                    .fontWeight(.semibold)
+                    .foregroundColor(isClothingInWardrobe ? Color(red: 0.4, green: 0.2, blue: 0.5) : Color(red: 0.4, green: 0.2, blue: 0.1))
                 
                 // 显示容器信息
                 if let containerId = item.containerId,
                    let container = dataManager.getContainer(withId: containerId) {
-                    Text("位于：\(container.name)")
+                    Text("住在：\(container.name) 🏠")
                         .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color(red: 0.6, green: 0.4, blue: 0.3))
                 }
                 
                 HStack {
                     Text(item.type.displayName)
                         .font(.caption)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 2)
-                        .background(isClothingInWardrobe ? Color.purple.opacity(0.3) : Color.blue.opacity(0.2))
-                        .cornerRadius(4)
-                        .foregroundColor(isClothingInWardrobe ? .white : .blue)
+                        .fontWeight(.medium)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(
+                            Capsule()
+                                .fill(isClothingInWardrobe ? Color(red: 0.9, green: 0.8, blue: 0.95) : Color(red: 1.0, green: 0.9, blue: 0.7))
+                        )
+                        .foregroundColor(isClothingInWardrobe ? Color(red: 0.6, green: 0.4, blue: 0.7) : Color(red: 0.8, green: 0.6, blue: 0.2))
                     
                     Spacer()
                     
                     // 过期状态
                     if item.isExpired {
-                        Text("已过期")
+                        Text("已过期 😢")
                             .font(.caption)
                             .foregroundColor(.white)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 2)
-                            .background(Color.red)
-                            .cornerRadius(4)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(
+                                Capsule()
+                                    .fill(Color(red: 1.0, green: 0.6, blue: 0.6))
+                            )
                     } else if item.isExpiringSoon {
-                        Text("即将过期")
+                        Text("快过期啦 ⏰")
                             .font(.caption)
                             .foregroundColor(.white)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 2)
-                            .background(Color.orange)
-                            .cornerRadius(4)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(
+                                Capsule()
+                                    .fill(Color(red: 1.0, green: 0.8, blue: 0.4))
+                            )
                     }
                 }
                 
@@ -226,7 +348,7 @@ struct ItemRowView: View {
                 if let info = getItemSpecificInfo() {
                     Text(info)
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color(red: 0.6, green: 0.4, blue: 0.3))
                 }
             }
             
@@ -235,29 +357,33 @@ struct ItemRowView: View {
             // 衣柜中的衣服显示特殊图标
             if isClothingInWardrobe {
                 Image(systemName: "sparkles")
-                    .foregroundColor(.purple)
-                    .font(.caption)
+                    .foregroundColor(Color(red: 0.85, green: 0.7, blue: 0.9))
+                    .font(.title3)
             } else {
                 Image(systemName: "chevron.right")
-                    .foregroundColor(.gray)
+                    .foregroundColor(Color(red: 1.0, green: 0.75, blue: 0.8))
                     .font(.caption)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.all, 16)
         .background(
-            Group {
-                if isClothingInWardrobe {
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color.purple.opacity(0.05))
+            RoundedRectangle(cornerRadius: 18)
+                .fill(Color.white.opacity(0.8))
+                .shadow(
+                    color: Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.2),
+                    radius: 8,
+                    x: 0,
+                    y: 4
+                )
                         .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color.purple.opacity(0.2), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 18)
+                        .stroke(
+                            isClothingInWardrobe ? 
+                            Color(red: 0.85, green: 0.7, blue: 0.9).opacity(0.3) : 
+                            Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.3),
+                            lineWidth: 1
                         )
-                } else {
-                    Rectangle()
-                        .fill(Color.clear)
-                }
-            }
+                        )
         )
     }
     
@@ -289,18 +415,46 @@ struct ItemRowView: View {
 // 空状态视图
 struct ItemEmptyStateView: View {
     var body: some View {
-        VStack {
-            Image(systemName: "tray")
+        VStack(spacing: 24) {
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color(red: 1.0, green: 0.9, blue: 0.95),
+                                Color(red: 1.0, green: 0.85, blue: 0.9)
+                            ]),
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 120, height: 120)
+                    .shadow(
+                        color: Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.3),
+                        radius: 15,
+                        x: 0,
+                        y: 8
+                    )
+                
+                Image(systemName: "heart.circle")
                 .font(.system(size: 50))
-                .foregroundColor(.gray)
-            Text("暂无物品")
-                .font(.headline)
-                .foregroundColor(.gray)
-            Text("点击添加按钮来创建第一个物品")
-                .font(.subheadline)
-                .foregroundColor(.gray)
+                    .foregroundColor(Color(red: 1.0, green: 0.75, blue: 0.8))
+            }
+            
+            VStack(spacing: 12) {
+                Text("还没有收藏任何宝贝呢 💕")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+                    .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
+                
+                Text("点击右上角的爱心按钮来添加第一个物品吧～")
+                    .font(.body)
+                    .foregroundColor(Color(red: 0.6, green: 0.4, blue: 0.3))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 40)
+            }
         }
-        .padding()
+        .padding(.all, 30)
     }
 }
 

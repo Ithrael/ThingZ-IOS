@@ -26,40 +26,52 @@ struct MainTabView: View {
             // 容器管理
             ContainerListView()
                 .tabItem {
-                    Image(systemName: "archivebox")
+                    Image(systemName: "archivebox.fill")
                     Text("容器")
                 }
             
             // 物品管理
             ItemListView()
                 .tabItem {
-                    Image(systemName: "list.bullet")
+                    Image(systemName: "heart.fill")
                     Text("物品")
                 }
             
             // 搜索
             SearchView()
                 .tabItem {
-                    Image(systemName: "magnifyingglass")
+                    Image(systemName: "magnifyingglass.circle.fill")
                     Text("搜索")
                 }
             
             // 过期提醒
             ExpirationAlertView()
                 .tabItem {
-                    Image(systemName: "clock.badge.exclamationmark")
+                    Image(systemName: "bell.fill")
                     Text("提醒")
                 }
             
             // 个人中心
             ProfileView()
                 .tabItem {
-                    Image(systemName: "person.circle")
+                    Image(systemName: "person.circle.fill")
                     Text("我的")
                 }
         }
         .environmentObject(dataManager)
         .environmentObject(authManager)
+        .accentColor(Color(red: 1.0, green: 0.75, blue: 0.8)) // 温馨的粉色
+        .background(
+            LinearGradient(
+                gradient: Gradient(colors: [
+                    Color(red: 1.0, green: 0.97, blue: 0.86), // 奶油色
+                    Color(red: 1.0, green: 0.95, blue: 0.9)   // 浅桃色
+                ]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
+        )
     }
 }
 

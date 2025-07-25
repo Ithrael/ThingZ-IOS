@@ -7,31 +7,57 @@ struct ContainerListView: View {
     
     var body: some View {
         NavigationView {
-            List {
+            ZStack {
+                // 背景渐变
+                LinearGradient(
+                    gradient: Gradient(colors: [
+                        Color(red: 1.0, green: 0.97, blue: 0.86), // 奶cream色
+                        Color(red: 1.0, green: 0.95, blue: 0.9)   // 浅桃色
+                    ]),
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
+                
+                ScrollView {
+                    LazyVStack(spacing: 16) {
                 if dataManager.containers.isEmpty {
                     ContainerEmptyStateView(
-                        title: "暂无容器",
-                        message: "点击右上角按钮添加第一个容器",
-                        iconName: "archivebox"
+                                title: "还没有小容器呢 🥺",
+                                message: "点击右上角的小爱心来添加第一个容器吧～",
+                                iconName: "heart.circle"
                     )
+                            .padding(.top, 50)
                 } else {
                     ForEach(dataManager.containers) { container in
                         ContainerRowView(container: container)
                             .onTapGesture {
                                 selectedContainer = container
                             }
+                                    .contextMenu {
+                                        Button(action: {
+                                            dataManager.deleteContainer(container)
+                                        }) {
+                                            Label("删除", systemImage: "trash")
+                                        }
+                                    }
+                            }
+                        }
                     }
-                    .onDelete(perform: deleteContainers)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 10)
                 }
             }
-            .navigationTitle("我的容器")
+            .navigationTitle("我的小窝 🏠")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: {
                         showingAddContainer = true
                     }) {
-                        Image(systemName: "plus")
+                        Image(systemName: "heart.fill")
+                            .foregroundColor(Color(red: 1.0, green: 0.75, blue: 0.8))
+                            .font(.title2)
                     }
                 }
             }
@@ -49,13 +75,6 @@ struct ContainerListView: View {
             }
         }
     }
-    
-    private func deleteContainers(offsets: IndexSet) {
-        for index in offsets {
-            let container = dataManager.containers[index]
-            dataManager.deleteContainer(container)
-        }
-    }
 }
 
 // 容器行视图
@@ -64,38 +83,62 @@ struct ContainerRowView: View {
     @EnvironmentObject var dataManager: DataManager
     
     var body: some View {
-        HStack {
+        HStack(spacing: 16) {
             // 容器图标
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color(red: 1.0, green: 0.82, blue: 0.86),
+                                Color(red: 1.0, green: 0.75, blue: 0.8)
+                            ]),
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 60, height: 60)
+                    .shadow(
+                        color: Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.3),
+                        radius: 8,
+                        x: 0,
+                        y: 4
+                    )
+                
             Image(systemName: container.type.icon)
                 .font(.title2)
-                .foregroundColor(.blue)
-                .frame(width: 40, height: 40)
-                .background(Color.blue.opacity(0.1))
-                .clipShape(Circle())
+                    .foregroundColor(.white)
+            }
             
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 6) {
                 Text(container.name)
                     .font(.headline)
-                    .foregroundColor(.primary)
+                    .fontWeight(.semibold)
+                    .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1)) // 深棕色
                 
                 Text(container.location)
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(Color(red: 0.6, green: 0.4, blue: 0.3))
                 
                 HStack {
                     Text(container.type.displayName)
                         .font(.caption)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 2)
-                        .background(Color.gray.opacity(0.2))
-                        .cornerRadius(4)
+                        .fontWeight(.medium)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 4)
+                        .background(
+                            Capsule()
+                                .fill(Color(red: 1.0, green: 0.9, blue: 0.7))
+                        )
+                        .foregroundColor(Color(red: 0.8, green: 0.6, blue: 0.2))
                     
                     Spacer()
                     
                     let itemCount = dataManager.getItems(inContainer: container.id).count
                     Text("\(itemCount)/\(container.capacity)")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .fontWeight(.medium)
+                        .foregroundColor(Color(red: 0.6, green: 0.4, blue: 0.3))
                 }
             }
             
@@ -107,10 +150,20 @@ struct ContainerRowView: View {
                 let utilization = container.capacity > 0 ? Double(itemCount) / Double(container.capacity) : 0
                 
                 CircularProgressView(progress: utilization)
-                    .frame(width: 30, height: 30)
+                    .frame(width: 35, height: 35)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.all, 20)
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(Color.white.opacity(0.8))
+                .shadow(
+                    color: Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.2),
+                    radius: 10,
+                    x: 0,
+                    y: 5
+                )
+        )
     }
 }
 
@@ -121,13 +174,21 @@ struct CircularProgressView: View {
     var body: some View {
         ZStack {
             Circle()
-                .stroke(Color.gray.opacity(0.3), lineWidth: 3)
+                .stroke(Color(red: 1.0, green: 0.9, blue: 0.95), lineWidth: 4)
             
             Circle()
                 .trim(from: 0, to: progress)
                 .stroke(
-                    progress > 0.8 ? Color.red : progress > 0.6 ? Color.orange : Color.green,
-                    style: StrokeStyle(lineWidth: 3, lineCap: .round)
+                    LinearGradient(
+                        gradient: Gradient(colors: [
+                            progress > 0.8 ? Color(red: 1.0, green: 0.6, blue: 0.6) : // 温柔的红色
+                            progress > 0.6 ? Color(red: 1.0, green: 0.8, blue: 0.4) : // 温暖的橙色
+                            Color(red: 0.7, green: 0.9, blue: 0.7) // 清新的绿色
+                        ]),
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    style: StrokeStyle(lineWidth: 4, lineCap: .round)
                 )
                 .rotationEffect(.degrees(-90))
                 .animation(.easeInOut(duration: 1.0), value: progress)
@@ -142,23 +203,46 @@ struct ContainerEmptyStateView: View {
     let iconName: String
     
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 24) {
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color(red: 1.0, green: 0.9, blue: 0.95),
+                                Color(red: 1.0, green: 0.85, blue: 0.9)
+                            ]),
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 120, height: 120)
+                    .shadow(
+                        color: Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.3),
+                        radius: 15,
+                        x: 0,
+                        y: 8
+                    )
+                
             Image(systemName: iconName)
-                .font(.system(size: 60))
-                .foregroundColor(.gray)
+                    .font(.system(size: 50))
+                    .foregroundColor(Color(red: 1.0, green: 0.75, blue: 0.8))
+            }
             
+            VStack(spacing: 12) {
             Text(title)
                 .font(.title2)
                 .fontWeight(.semibold)
-                .foregroundColor(.primary)
+                    .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
             
             Text(message)
                 .font(.body)
-                .foregroundColor(.secondary)
+                    .foregroundColor(Color(red: 0.6, green: 0.4, blue: 0.3))
                 .multilineTextAlignment(.center)
-                .padding(.horizontal)
+                    .padding(.horizontal, 40)
+            }
         }
-        .padding()
+        .padding(.all, 30)
     }
 }
 

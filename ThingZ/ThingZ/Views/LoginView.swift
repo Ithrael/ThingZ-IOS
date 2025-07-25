@@ -9,32 +9,69 @@ struct LoginView: View {
     
     var body: some View {
         NavigationView {
+            ZStack {
+                // 背景渐变
+                LinearGradient(
+                    gradient: Gradient(colors: [
+                        Color(red: 1.0, green: 0.97, blue: 0.86), // 奶cream色
+                        Color(red: 1.0, green: 0.92, blue: 0.8),   // 温暖的桃色
+                        Color(red: 1.0, green: 0.95, blue: 0.9)    // 浅桃色
+                    ]),
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
+                
             ScrollView {
-                VStack(spacing: 30) {
+                    VStack(spacing: 40) {
                     // 应用Logo和标题
-                    VStack(spacing: 16) {
+                        VStack(spacing: 20) {
+                            ZStack {
+                                Circle()
+                                    .fill(
+                                        LinearGradient(
+                                            gradient: Gradient(colors: [
+                                                Color(red: 1.0, green: 0.82, blue: 0.86),
+                                                Color(red: 1.0, green: 0.75, blue: 0.8)
+                                            ]),
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
+                                    .frame(width: 120, height: 120)
+                                    .shadow(
+                                        color: Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.4),
+                                        radius: 20,
+                                        x: 0,
+                                        y: 10
+                                    )
+                                
                         Image(systemName: "archivebox.fill")
-                            .font(.system(size: 80))
-                            .foregroundColor(.blue)
+                                    .font(.system(size: 50))
+                                    .foregroundColor(.white)
+                            }
                         
+                            VStack(spacing: 8) {
                         Text("ThingZ")
                             .font(.largeTitle)
                             .fontWeight(.bold)
-                            .foregroundColor(.primary)
+                                    .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
                         
-                        Text("智能储物助手")
+                                Text("你的贴心储物小助手 🥰")
                             .font(.subheadline)
-                            .foregroundColor(.secondary)
+                                    .foregroundColor(Color(red: 0.6, green: 0.4, blue: 0.3))
+                            }
                     }
                     .padding(.top, 40)
                     
                     // 登录方式选择
-                    VStack(spacing: 16) {
-                        Text("选择登录方式")
+                        VStack(spacing: 20) {
+                            Text("选择你喜欢的登录方式 ✨")
                             .font(.headline)
-                            .foregroundColor(.primary)
+                                .fontWeight(.semibold)
+                                .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
                         
-                        HStack(spacing: 12) {
+                            HStack(spacing: 16) {
                             ForEach(LoginMethod.allCases, id: \.self) { method in
                                 LoginMethodButton(
                                     method: method,
@@ -45,10 +82,10 @@ struct LoginView: View {
                             }
                         }
                     }
-                    .padding(.horizontal)
+                        .padding(.horizontal, 20)
                     
                     // 登录表单
-                    VStack(spacing: 20) {
+                        VStack(spacing: 24) {
                         switch selectedLoginMethod {
                         case .username:
                             UsernameLoginForm()
@@ -60,19 +97,20 @@ struct LoginView: View {
                             AppleLoginForm()
                         }
                     }
-                    .padding(.horizontal)
+                        .padding(.horizontal, 20)
                     
                     Spacer()
+                    }
+                    .padding(.bottom, 30)
                 }
             }
             .navigationTitle("")
             .navigationBarHidden(true)
-            .background(Color(.systemBackground))
             .alert(isPresented: $showingAlert) {
                 Alert(
-                    title: Text("提示"),
+                    title: Text("温馨提示 💫"),
                     message: Text(alertMessage),
-                    dismissButton: .default(Text("确定"))
+                    dismissButton: .default(Text("好的"))
                 )
             }
         }
@@ -94,20 +132,45 @@ struct LoginMethodButton: View {
     
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 8) {
+            VStack(spacing: 10) {
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                gradient: Gradient(colors: isSelected ? [
+                                    Color(red: 1.0, green: 0.75, blue: 0.8),
+                                    Color(red: 1.0, green: 0.65, blue: 0.75)
+                                ] : [
+                                    Color.white.opacity(0.8),
+                                    Color.white.opacity(0.6)
+                                ]),
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 50, height: 50)
+                        .shadow(
+                            color: Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.3),
+                            radius: isSelected ? 12 : 6,
+                            x: 0,
+                            y: isSelected ? 6 : 3
+                        )
+                    
                 Image(systemName: method.icon)
-                    .font(.system(size: 24))
-                    .foregroundColor(isSelected ? .white : .blue)
+                        .font(.system(size: 20))
+                        .foregroundColor(isSelected ? .white : Color(red: 1.0, green: 0.75, blue: 0.8))
+                }
                 
                 Text(method.displayName)
                     .font(.caption)
-                    .foregroundColor(isSelected ? .white : .blue)
+                    .fontWeight(.medium)
+                    .foregroundColor(isSelected ? Color(red: 0.4, green: 0.2, blue: 0.1) : Color(red: 0.6, green: 0.4, blue: 0.3))
             }
-            .frame(width: 80, height: 80)
-            .background(isSelected ? Color.blue : Color.blue.opacity(0.1))
-            .cornerRadius(12)
+            .frame(width: 80, height: 90)
         }
         .buttonStyle(PlainButtonStyle())
+        .scaleEffect(isSelected ? 1.05 : 1.0)
+        .animation(.easeInOut(duration: 0.2), value: isSelected)
     }
 }
 
@@ -119,23 +182,50 @@ struct UsernameLoginForm: View {
     @State private var showPassword = false
     
     var body: some View {
-        VStack(spacing: 16) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("手机号")
+        VStack(spacing: 20) {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("手机号 📱")
                     .font(.subheadline)
-                    .fontWeight(.medium)
+                    .fontWeight(.semibold)
+                    .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
+                
+                ZStack {
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Color.white.opacity(0.8))
+                        .shadow(
+                            color: Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.2),
+                            radius: 8,
+                            x: 0,
+                            y: 4
+                        )
                 
                 TextField("请输入手机号", text: $username)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
                     .keyboardType(.phonePad)
                     .autocapitalization(.none)
                     .disableAutocorrection(true)
+                        .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
+                }
+                .frame(height: 50)
             }
             
-            VStack(alignment: .leading, spacing: 8) {
-                Text("密码")
+            VStack(alignment: .leading, spacing: 10) {
+                Text("密码 🔐")
                     .font(.subheadline)
-                    .fontWeight(.medium)
+                    .fontWeight(.semibold)
+                    .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
+                
+                HStack {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color.white.opacity(0.8))
+                            .shadow(
+                                color: Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.2),
+                                radius: 8,
+                                x: 0,
+                                y: 4
+                            )
                 
                 HStack {
                     Group {
@@ -145,14 +235,19 @@ struct UsernameLoginForm: View {
                             SecureField("请输入密码", text: $password)
                         }
                     }
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                            .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
                     
                     Button(action: {
                         showPassword.toggle()
                     }) {
                         Image(systemName: showPassword ? "eye.slash" : "eye")
-                            .foregroundColor(.gray)
+                                    .foregroundColor(Color(red: 1.0, green: 0.75, blue: 0.8))
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
                     }
+                    .frame(height: 50)
                 }
             }
             
@@ -168,16 +263,34 @@ struct UsernameLoginForm: View {
                             .scaleEffect(0.8)
                     }
                     
-                    Text("登录")
+                    Text("开始我的收纳之旅 ✨")
                         .font(.headline)
+                        .fontWeight(.semibold)
                         .foregroundColor(.white)
                 }
                 .frame(maxWidth: .infinity)
-                .frame(height: 50)
-                .background(Color.blue)
-                .cornerRadius(12)
+                .frame(height: 54)
+                .background(
+                    LinearGradient(
+                        gradient: Gradient(colors: [
+                            Color(red: 1.0, green: 0.75, blue: 0.8),
+                            Color(red: 1.0, green: 0.65, blue: 0.75)
+                        ]),
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .cornerRadius(20)
+                .shadow(
+                    color: Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.4),
+                    radius: 12,
+                    x: 0,
+                    y: 6
+                )
             }
             .disabled(authManager.isLoading || username.isEmpty || password.isEmpty)
+            .scaleEffect(authManager.isLoading || username.isEmpty || password.isEmpty ? 0.95 : 1.0)
+            .animation(.easeInOut(duration: 0.2), value: authManager.isLoading || username.isEmpty || password.isEmpty)
         }
     }
 }
@@ -191,31 +304,68 @@ struct PhoneLoginForm: View {
     @State private var timer: Timer?
     
     var body: some View {
-        VStack(spacing: 16) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("手机号")
+        VStack(spacing: 20) {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("手机号 📱")
                     .font(.subheadline)
-                    .fontWeight(.medium)
+                    .fontWeight(.semibold)
+                    .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
+                
+                ZStack {
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Color.white.opacity(0.8))
+                        .shadow(
+                            color: Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.2),
+                            radius: 8,
+                            x: 0,
+                            y: 4
+                        )
                 
                 TextField("请输入手机号", text: $phoneNumber)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
                     .keyboardType(.phonePad)
+                        .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
+                }
+                .frame(height: 50)
             }
             
-            VStack(alignment: .leading, spacing: 8) {
-                Text("验证码")
+            VStack(alignment: .leading, spacing: 10) {
+                Text("验证码 🔢")
                     .font(.subheadline)
-                    .fontWeight(.medium)
+                    .fontWeight(.semibold)
+                    .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
                 
-                HStack {
+                HStack(spacing: 12) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color.white.opacity(0.8))
+                            .shadow(
+                                color: Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.2),
+                                radius: 8,
+                                x: 0,
+                                y: 4
+                            )
+                        
                     TextField("请输入验证码", text: $verificationCode)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
                         .keyboardType(.numberPad)
+                            .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
+                    }
+                    .frame(height: 50)
                     
                     Button(action: sendVerificationCode) {
                         Text(countdown > 0 ? "\(countdown)s" : "获取验证码")
                             .font(.caption)
-                            .foregroundColor(countdown > 0 ? .gray : .blue)
+                            .fontWeight(.medium)
+                            .foregroundColor(countdown > 0 ? Color(red: 0.6, green: 0.4, blue: 0.3) : .white)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(countdown > 0 ? Color.gray.opacity(0.3) : Color(red: 1.0, green: 0.8, blue: 0.4))
+                            )
                     }
                     .disabled(countdown > 0 || phoneNumber.isEmpty)
                 }
@@ -233,16 +383,34 @@ struct PhoneLoginForm: View {
                             .scaleEffect(0.8)
                     }
                     
-                    Text("登录")
+                    Text("开始我的收纳之旅 ✨")
                         .font(.headline)
+                        .fontWeight(.semibold)
                         .foregroundColor(.white)
                 }
                 .frame(maxWidth: .infinity)
-                .frame(height: 50)
-                .background(Color.blue)
-                .cornerRadius(12)
+                .frame(height: 54)
+                .background(
+                    LinearGradient(
+                        gradient: Gradient(colors: [
+                            Color(red: 1.0, green: 0.75, blue: 0.8),
+                            Color(red: 1.0, green: 0.65, blue: 0.75)
+                        ]),
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .cornerRadius(20)
+                .shadow(
+                    color: Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.4),
+                    radius: 12,
+                    x: 0,
+                    y: 6
+                )
             }
             .disabled(authManager.isLoading || phoneNumber.isEmpty || verificationCode.isEmpty)
+            .scaleEffect(authManager.isLoading || phoneNumber.isEmpty || verificationCode.isEmpty ? 0.95 : 1.0)
+            .animation(.easeInOut(duration: 0.2), value: authManager.isLoading || phoneNumber.isEmpty || verificationCode.isEmpty)
         }
     }
     
@@ -273,20 +441,44 @@ struct WechatLoginForm: View {
     @EnvironmentObject var authManager: AuthManager
     
     var body: some View {
+        VStack(spacing: 24) {
         VStack(spacing: 20) {
-            VStack(spacing: 16) {
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                gradient: Gradient(colors: [
+                                    Color(red: 0.7, green: 0.9, blue: 0.7),
+                                    Color(red: 0.6, green: 0.8, blue: 0.6)
+                                ]),
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 80, height: 80)
+                        .shadow(
+                            color: Color.green.opacity(0.3),
+                            radius: 15,
+                            x: 0,
+                            y: 8
+                        )
+                    
                 Image(systemName: "message.circle.fill")
-                    .font(.system(size: 60))
-                    .foregroundColor(.green)
+                        .font(.system(size: 40))
+                        .foregroundColor(.white)
+                }
                 
-                Text("使用微信账号登录")
+                VStack(spacing: 8) {
+                    Text("使用微信账号登录 💬")
                     .font(.headline)
-                    .foregroundColor(.primary)
+                        .fontWeight(.semibold)
+                        .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
                 
-                Text("点击下方按钮跳转到微信进行授权")
+                    Text("点击下方按钮跳转到微信进行授权～")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                        .foregroundColor(Color(red: 0.6, green: 0.4, blue: 0.3))
                     .multilineTextAlignment(.center)
+                }
             }
             .padding(.vertical, 20)
             
@@ -307,14 +499,32 @@ struct WechatLoginForm: View {
                     
                     Text("微信登录")
                         .font(.headline)
+                        .fontWeight(.semibold)
                         .foregroundColor(.white)
                 }
                 .frame(maxWidth: .infinity)
-                .frame(height: 50)
-                .background(Color.green)
-                .cornerRadius(12)
+                .frame(height: 54)
+                .background(
+                    LinearGradient(
+                        gradient: Gradient(colors: [
+                            Color(red: 0.7, green: 0.9, blue: 0.7),
+                            Color(red: 0.6, green: 0.8, blue: 0.6)
+                        ]),
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .cornerRadius(20)
+                .shadow(
+                    color: Color.green.opacity(0.4),
+                    radius: 12,
+                    x: 0,
+                    y: 6
+                )
             }
             .disabled(authManager.isLoading)
+            .scaleEffect(authManager.isLoading ? 0.95 : 1.0)
+            .animation(.easeInOut(duration: 0.2), value: authManager.isLoading)
         }
     }
 }
@@ -324,20 +534,44 @@ struct AppleLoginForm: View {
     @EnvironmentObject var authManager: AuthManager
     
     var body: some View {
+        VStack(spacing: 24) {
         VStack(spacing: 20) {
-            VStack(spacing: 16) {
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                gradient: Gradient(colors: [
+                                    Color(red: 0.2, green: 0.2, blue: 0.2),
+                                    Color(red: 0.1, green: 0.1, blue: 0.1)
+                                ]),
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 80, height: 80)
+                        .shadow(
+                            color: Color.black.opacity(0.3),
+                            radius: 15,
+                            x: 0,
+                            y: 8
+                        )
+                    
                 Image(systemName: "applelogo")
-                    .font(.system(size: 60))
-                    .foregroundColor(.black)
+                        .font(.system(size: 40))
+                        .foregroundColor(.white)
+                }
                 
-                Text("使用Apple ID登录")
+                VStack(spacing: 8) {
+                    Text("使用Apple ID登录 🍎")
                     .font(.headline)
-                    .foregroundColor(.primary)
+                        .fontWeight(.semibold)
+                        .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
                 
-                Text("快速、安全地使用您的Apple ID登录")
+                    Text("快速、安全地使用您的Apple ID登录～")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                        .foregroundColor(Color(red: 0.6, green: 0.4, blue: 0.3))
                     .multilineTextAlignment(.center)
+                }
             }
             .padding(.vertical, 20)
             
@@ -360,8 +594,14 @@ struct AppleLoginForm: View {
             )
             .signInWithAppleButtonStyle(.black)
             .frame(maxWidth: .infinity)
-            .frame(height: 50)
-            .cornerRadius(12)
+            .frame(height: 54)
+            .cornerRadius(20)
+            .shadow(
+                color: Color.black.opacity(0.3),
+                radius: 12,
+                x: 0,
+                y: 6
+            )
         }
     }
 }
