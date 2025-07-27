@@ -15,6 +15,17 @@ struct User: Codable, Identifiable {
 }
 
 // API请求和响应模型
+struct SendSmsCodeRequest: Codable {
+    let phone: String
+    let type: String
+}
+
+struct SmsLoginRequest: Codable {
+    let phone: String
+    let code: String
+    let rememberMe: Bool
+}
+
 struct LoginRequest: Codable {
     let phone: String
     let password: String
@@ -276,10 +287,7 @@ class AuthManager: ObservableObject {
             self.errorMessage = ""
         }
         
-        // 模拟网络请求
-        await Task.sleep(1_000_000_000) // 1秒延迟
-        
-        // 简单的模拟验证
+        // 基本验证
         if phoneNumber.isEmpty || verificationCode.isEmpty {
             DispatchQueue.main.async {
                 self.isLoading = false
@@ -288,29 +296,99 @@ class AuthManager: ObservableObject {
             return .failure("手机号或验证码不能为空")
         }
         
-        if verificationCode != "123456" {
+        // 调用API
+        do {
+            let loginRequest = SmsLoginRequest(
+                phone: phoneNumber,
+                code: verificationCode,
+                rememberMe: true
+            )
+            
+            let user = try await performSmsLogin(request: loginRequest)
+            
+            DispatchQueue.main.async {
+                self.currentUser = user
+                self.isAuthenticated = true
+                self.isLoading = false
+                self.saveAuthState()
+            }
+            
+            return .success(user)
+        } catch {
+            let errorMessage = error.localizedDescription
             DispatchQueue.main.async {
                 self.isLoading = false
-                self.errorMessage = "验证码错误"
+                self.errorMessage = errorMessage
             }
-            return .failure("验证码错误")
+            return .failure(errorMessage)
+        }
+    }
+    
+    // 执行短信登录API请求
+    private func performSmsLogin(request: SmsLoginRequest) async throws -> User {
+        guard let url = URL(string: "\(apiBaseURL)/auth/sms-login") else {
+            throw NSError(domain: "AuthError", code: -1, userInfo: [
+                NSLocalizedDescriptionKey: "无效的API地址"
+            ])
         }
         
-        // 创建用户
-        let user = User(
-            username: "用户\(phoneNumber.suffix(4))",
-            phoneNumber: phoneNumber,
-            loginMethod: .phone
-        )
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.timeoutInterval = 30.0 // 30秒超时
         
-        DispatchQueue.main.async {
-            self.currentUser = user
-            self.isAuthenticated = true
-            self.isLoading = false
-            self.saveAuthState()
+        do {
+            let requestData = try JSONEncoder().encode(request)
+            urlRequest.httpBody = requestData
+            
+            let (data, response) = try await URLSession.shared.data(for: urlRequest)
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw NSError(domain: "AuthError", code: -1, userInfo: [
+                    NSLocalizedDescriptionKey: "服务器响应异常"
+                ])
+            }
+            
+            // 根据HTTP状态码判断
+            if httpResponse.statusCode == 200 {
+                // 解析响应
+                let loginResponse = try JSONDecoder().decode(LoginResponse.self, from: data)
+                
+                if loginResponse.code == 200, let loginData = loginResponse.data {
+                    // 保存token
+                    self.authToken = loginData.accessToken
+                    
+                    // 创建用户对象
+                    let user = User(
+                        username: loginData.user.username ?? loginData.user.phone,
+                        email: loginData.user.email,
+                        phoneNumber: loginData.user.phone,
+                        avatar: loginData.user.avatarUrl,
+                        loginMethod: .phone
+                    )
+                    
+                    return user
+                } else {
+                    throw NSError(domain: "AuthError", code: loginResponse.code, userInfo: [
+                        NSLocalizedDescriptionKey: loginResponse.message
+                    ])
+                }
+            } else {
+                // 尝试解析错误响应
+                if let loginResponse = try? JSONDecoder().decode(LoginResponse.self, from: data) {
+                    throw NSError(domain: "AuthError", code: loginResponse.code, userInfo: [
+                        NSLocalizedDescriptionKey: loginResponse.message
+                    ])
+                } else {
+                    throw NSError(domain: "AuthError", code: httpResponse.statusCode, userInfo: [
+                        NSLocalizedDescriptionKey: "登录失败 (HTTP \(httpResponse.statusCode))"
+                    ])
+                }
+            }
+            
+        } catch {
+            throw error
         }
-        
-        return .success(user)
     }
     
     // 微信登录
@@ -369,12 +447,56 @@ class AuthManager: ObservableObject {
     
     // 发送验证码
     func sendVerificationCode(to phoneNumber: String) async -> Bool {
-        // 模拟发送验证码
-        await Task.sleep(1_000_000_000) // 1秒延迟
+        guard let url = URL(string: "\(apiBaseURL)/auth/send-sms-code") else {
+            DispatchQueue.main.async {
+                self.errorMessage = "无效的API地址"
+            }
+            return false
+        }
         
-        // 在实际应用中，这里应该调用后端API发送验证码
-        print("验证码已发送到: \(phoneNumber)")
-        return true
+        let request = SendSmsCodeRequest(phone: phoneNumber, type: "login")
+        
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.timeoutInterval = 30.0
+        
+        do {
+            let requestData = try JSONEncoder().encode(request)
+            urlRequest.httpBody = requestData
+            
+            let (data, response) = try await URLSession.shared.data(for: urlRequest)
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                DispatchQueue.main.async {
+                    self.errorMessage = "服务器响应异常"
+                }
+                return false
+            }
+            
+            if httpResponse.statusCode == 200 {
+                let apiResponse = try JSONDecoder().decode(LoginResponse.self, from: data)
+                
+                if apiResponse.code == 200 {
+                    return true
+                } else {
+                    DispatchQueue.main.async {
+                        self.errorMessage = apiResponse.message
+                    }
+                    return false
+                }
+            } else {
+                DispatchQueue.main.async {
+                    self.errorMessage = "发送验证码失败 (HTTP \(httpResponse.statusCode))"
+                }
+                return false
+            }
+        } catch {
+            DispatchQueue.main.async {
+                self.errorMessage = error.localizedDescription
+            }
+            return false
+        }
     }
     
     // 登出

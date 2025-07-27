@@ -1,11 +1,14 @@
 import SwiftUI
+import UIKit
 
 struct SettingsView: View {
     @EnvironmentObject var dataManager: DataManager
+    @EnvironmentObject var authManager: AuthManager
     @State private var showingAbout = false
     @State private var showingDataManagement = false
     @State private var showingNotificationSettings = false
     @State private var showingDeleteAlert = false
+    @State private var showingProfileSettings = false
     
     var body: some View {
         NavigationView {
@@ -51,6 +54,20 @@ struct SettingsView: View {
                 
                 // 应用设置
                 Section(header: Text("应用设置")) {
+                    Button(action: {
+                        showingProfileSettings = true
+                    }) {
+                        HStack {
+                            Image(systemName: "person.circle")
+                                .foregroundColor(Color(red: 1.0, green: 0.75, blue: 0.8))
+                            Text("个人信息")
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .foregroundColor(.gray)
+                        }
+                    }
+                    .foregroundColor(.primary)
+                    
                     Button(action: {
                         showingNotificationSettings = true
                     }) {
@@ -122,6 +139,9 @@ struct SettingsView: View {
             }
             .navigationTitle("设置")
             .navigationBarTitleDisplayMode(.large)
+            .sheet(isPresented: $showingProfileSettings) {
+                ProfileSettingsView()
+            }
             .sheet(isPresented: $showingAbout) {
                 AboutView()
             }
@@ -141,6 +161,372 @@ struct SettingsView: View {
                     secondaryButton: .cancel()
                 )
             }
+        }
+    }
+}
+
+// 个人信息设置视图
+struct ProfileSettingsView: View {
+    @Environment(\.presentationMode) var presentationMode
+    @EnvironmentObject var authManager: AuthManager
+    @State private var showingImagePicker = false
+    @State private var showingChangePasswordAlert = false
+    @State private var showingChangePhoneAlert = false
+    @State private var inputImage: UIImage?
+    @State private var nickname = ""
+    @State private var currentPassword = ""
+    @State private var newPassword = ""
+    @State private var confirmPassword = ""
+    @State private var newPhone = ""
+    @State private var verificationCode = ""
+    @State private var isVerificationCodeSent = false
+    @State private var countdownSeconds = 60
+    @State private var timer: Timer?
+    
+    var body: some View {
+        NavigationView {
+            ZStack {
+                // 背景渐变
+                LinearGradient(
+                    gradient: Gradient(colors: [
+                        Color(red: 1.0, green: 0.97, blue: 0.86), // 奶cream色
+                        Color(red: 1.0, green: 0.95, blue: 0.9)   // 浅桃色
+                    ]),
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
+                
+                ScrollView {
+                    VStack(spacing: 24) {
+                        // 页面标题区域
+                        VStack(spacing: 16) {
+                            ZStack {
+                                Circle()
+                                    .fill(
+                                        LinearGradient(
+                                            gradient: Gradient(colors: [
+                                                Color(red: 1.0, green: 0.82, blue: 0.86),
+                                                Color(red: 1.0, green: 0.75, blue: 0.8)
+                                            ]),
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
+                                    .frame(width: 80, height: 80)
+                                    .shadow(
+                                        color: Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.3),
+                                        radius: 15,
+                                        x: 0,
+                                        y: 8
+                                    )
+                                
+                                Image(systemName: "person.circle.fill")
+                                    .font(.system(size: 35))
+                                    .foregroundColor(.white)
+                            }
+                            
+                            VStack(spacing: 8) {
+                                Text("个人信息设置 💝")
+                                    .font(.title3)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
+                                
+                                Text("让我们更了解你")
+                                    .font(.subheadline)
+                                    .foregroundColor(Color(red: 0.6, green: 0.4, blue: 0.3))
+                            }
+                        }
+                        .padding(.top, 30)
+                        
+                        // 头像设置
+                        VStack(alignment: .leading, spacing: 16) {
+                            HStack {
+                                Text("头像设置 📸")
+                                    .font(.headline)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
+                                Spacer()
+                            }
+                            
+                            Button(action: {
+                                showingImagePicker = true
+                            }) {
+                                HStack(spacing: 16) {
+                                    AvatarView(
+                                        inputImage: inputImage,
+                                        avatarUrl: authManager.currentUser?.avatar
+                                    )
+                                    
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text("更换头像")
+                                            .font(.headline)
+                                            .fontWeight(.semibold)
+                                            .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
+                                        
+                                        Text("让大家认识你")
+                                            .font(.subheadline)
+                                            .foregroundColor(Color(red: 0.6, green: 0.4, blue: 0.3))
+                                    }
+                                    
+                                    Spacer()
+                                    
+                                    Image(systemName: "chevron.right")
+                                        .foregroundColor(Color(red: 1.0, green: 0.75, blue: 0.8))
+                                        .font(.caption)
+                                }
+                            }
+                            .padding(.all, 16)
+                            .background(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .fill(Color.white.opacity(0.6))
+                                    .shadow(
+                                        color: Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.1),
+                                        radius: 5,
+                                        x: 0,
+                                        y: 2
+                                    )
+                            )
+                        }
+                        .padding(.all, 20)
+                        .background(
+                            RoundedRectangle(cornerRadius: 20)
+                                .fill(Color.white.opacity(0.8))
+                                .shadow(
+                                    color: Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.2),
+                                    radius: 10,
+                                    x: 0,
+                                    y: 5
+                                )
+                        )
+                        .padding(.horizontal, 20)
+                        
+                        // 基本信息
+                        VStack(alignment: .leading, spacing: 16) {
+                            HStack {
+                                Text("基本信息 📝")
+                                    .font(.headline)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
+                                Spacer()
+                            }
+                            
+                            VStack(spacing: 12) {
+                                // 昵称
+                                ProfileSettingsRow(
+                                    icon: "person.fill",
+                                    title: "昵称",
+                                    value: authManager.currentUser?.username ?? "未设置",
+                                    color: Color(red: 1.0, green: 0.75, blue: 0.8)
+                                ) {
+                                    // 修改昵称的操作
+                                }
+                                
+                                // 手机号
+                                ProfileSettingsRow(
+                                    icon: "phone.fill",
+                                    title: "手机号",
+                                    value: authManager.currentUser?.phoneNumber ?? "未绑定",
+                                    color: Color(red: 0.7, green: 0.9, blue: 0.9)
+                                ) {
+                                    showingChangePhoneAlert = true
+                                }
+                                
+                                // 修改密码
+                                ProfileSettingsRow(
+                                    icon: "lock.fill",
+                                    title: "修改密码",
+                                    value: "点击修改",
+                                    color: Color(red: 1.0, green: 0.8, blue: 0.4)
+                                ) {
+                                    showingChangePasswordAlert = true
+                                }
+                            }
+                        }
+                        .padding(.all, 20)
+                        .background(
+                            RoundedRectangle(cornerRadius: 20)
+                                .fill(Color.white.opacity(0.8))
+                                .shadow(
+                                    color: Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.2),
+                                    radius: 10,
+                                    x: 0,
+                                    y: 5
+                                )
+                        )
+                        .padding(.horizontal, 20)
+                    }
+                    .padding(.bottom, 30)
+                }
+            }
+            .navigationTitle("个人信息 💫")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("完成") {
+                        presentationMode.wrappedValue.dismiss()
+                    }
+                    .foregroundColor(Color(red: 1.0, green: 0.75, blue: 0.8))
+                    .fontWeight(.medium)
+                }
+            }
+            .sheet(isPresented: $showingImagePicker) {
+                ImagePicker(selectedImage: $inputImage)
+            }
+            .alert(isPresented: $showingChangePasswordAlert) {
+                Alert(
+                    title: Text("修改密码"),
+                    message: Text("此功能将在未来版本中开放"),
+                    dismissButton: .default(Text("好的"))
+                )
+            }
+            .alert(isPresented: $showingChangePhoneAlert) {
+                Alert(
+                    title: Text("修改手机号"),
+                    message: Text("此功能将在未来版本中开放"),
+                    dismissButton: .default(Text("好的"))
+                )
+            }
+        }
+    }
+}
+
+// 个人信息设置行
+struct ProfileSettingsRow: View {
+    let icon: String
+    let title: String
+    let value: String
+    let color: Color
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 16) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(
+                            LinearGradient(
+                                gradient: Gradient(colors: [
+                                    color.opacity(0.8),
+                                    color.opacity(0.6)
+                                ]),
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 40, height: 40)
+                        .shadow(
+                            color: color.opacity(0.3),
+                            radius: 6,
+                            x: 0,
+                            y: 3
+                        )
+                    
+                    Image(systemName: icon)
+                        .font(.title3)
+                        .foregroundColor(.white)
+                }
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
+                    
+                    Text(value)
+                        .font(.caption)
+                        .foregroundColor(Color(red: 0.6, green: 0.4, blue: 0.3))
+                }
+                
+                Spacer()
+                
+                Image(systemName: "chevron.right")
+                    .foregroundColor(Color(red: 1.0, green: 0.75, blue: 0.8))
+                    .font(.caption)
+            }
+            .padding(.all, 16)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color.white.opacity(0.6))
+                    .shadow(
+                        color: Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.1),
+                        radius: 5,
+                        x: 0,
+                        y: 2
+                    )
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+}
+
+// 添加 AvatarView 组件
+struct AvatarView: View {
+    let inputImage: UIImage?
+    let avatarUrl: String?
+    
+    var body: some View {
+        Group {
+            if let image = inputImage {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 80, height: 80)
+                    .clipShape(Circle())
+                    .shadow(
+                        color: Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.3),
+                        radius: 8,
+                        x: 0,
+                        y: 4
+                    )
+            } else if let avatar = avatarUrl,
+                      let url = URL(string: avatar),
+                      let data = try? Data(contentsOf: url),
+                      let uiImage = UIImage(data: data) {
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 80, height: 80)
+                    .clipShape(Circle())
+                    .shadow(
+                        color: Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.3),
+                        radius: 8,
+                        x: 0,
+                        y: 4
+                    )
+            } else {
+                DefaultAvatarView()
+            }
+        }
+    }
+}
+
+// 添加 DefaultAvatarView 组件
+struct DefaultAvatarView: View {
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(
+                    LinearGradient(
+                        gradient: Gradient(colors: [
+                            Color(red: 1.0, green: 0.9, blue: 0.95),
+                            Color(red: 1.0, green: 0.85, blue: 0.9)
+                        ]),
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: 80, height: 80)
+                .shadow(
+                    color: Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.3),
+                    radius: 8,
+                    x: 0,
+                    y: 4
+                )
+            
+            Image(systemName: "person.circle.fill")
+                .font(.system(size: 40))
+                .foregroundColor(.white)
         }
     }
 }
@@ -934,4 +1320,5 @@ struct NotificationSettingsView: View {
 #Preview {
     SettingsView()
         .environmentObject(DataManager.shared)
-} 
+        .environmentObject(AuthManager.shared)
+}
