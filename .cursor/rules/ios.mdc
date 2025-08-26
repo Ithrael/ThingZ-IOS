@@ -1,0 +1,85 @@
+---
+description: iOS开发专用规则 - 针对SwiftUI和iOS应用开发优化
+globs: ["**/*.swift", "**/*.xcodeproj/**", "**/*.plist", "**/*.storyboard"]
+alwaysApply: true
+---
+
+# iOS开发专用Cursor规则
+
+## Swift编码规范
+- 使用驼峰命名法：类名使用大写开头，变量和函数使用小写开头
+- 优先使用struct而不是class，除非需要引用语义
+- 使用guard语句进行早期返回，提高代码可读性
+- 属性包装器使用：@State, @Binding, @ObservedObject, @EnvironmentObject, @StateObject
+- 遵循Swift API设计指南，使用清晰简洁的命名
+
+## SwiftUI最佳实践
+- 组件化开发：将复杂视图拆分为小的可重用组件
+- 使用@ViewBuilder创建自定义容器视图
+- 合理使用@State和@Binding管理状态
+- 避免在body中执行复杂计算，使用computed properties
+- 使用PreferenceKey在视图层级间传递数据
+- 动画使用.animation()修饰符，配合@State变化
+
+## 架构模式
+- 使用MVVM架构模式
+- ObservableObject用于数据模型和业务逻辑
+- 单一数据源原则，避免状态分散
+- 使用Repository模式处理数据持久化
+- 依赖注入使用EnvironmentObject
+
+## 性能优化
+- 使用LazyVStack/LazyHStack处理大量数据
+- 图片使用AsyncImage或自定义缓存
+- 避免在body中创建新对象
+- 使用.id()强制重新渲染特定视图
+- 合理使用.onAppear和.onDisappear
+
+## UI设计原则
+- 遵循Apple Human Interface Guidelines
+- 支持Dark Mode和Light Mode
+- 使用系统字体和颜色
+- 适配不同屏幕尺寸(iPhone/iPad)
+- 无障碍支持：添加accessibility标识符和标签
+
+## 错误处理
+- 使用Result类型处理可能失败的操作
+- 网络请求使用async/await模式
+- 用户友好的错误提示信息
+- 优雅降级处理网络异常
+
+## 数据管理
+- UserDefaults用于简单配置存储
+- Core Data或SQLite用于复杂数据持久化
+- Keychain用于敏感信息存储
+- 使用Codable进行JSON序列化
+
+## 代码组织
+- 按功能模块组织文件夹：Models/, Views/, ViewModels/, Services/
+- 使用extension分离不同功能
+- 遵循单一职责原则
+- 添加必要的文档注释
+
+## 测试
+- 单元测试覆盖业务逻辑
+- UI测试覆盖关键用户流程
+- 使用XCTest框架
+- Mock外部依赖进行测试
+
+## 安全考虑
+- 敏感数据不在代码中硬编码
+- 网络请求使用HTTPS
+- 用户输入验证和清理
+- 适当的权限请求说明
+
+## 国际化支持
+- 使用NSLocalizedString进行文本国际化
+- 支持RTL布局
+- 日期、数字格式本地化
+- 图片资源本地化
+
+## 代码示例偏好
+- 提供完整可运行的代码示例
+- 包含必要的import语句
+- 注重代码的可读性和可维护性
+- 使用现代Swift特性(async/await, SwiftUI等)
