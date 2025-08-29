@@ -1,14 +1,43 @@
 import Foundation
 import SwiftUI
 
+// API响应模型
+struct APIContainerResponse: Codable {
+    let code: Int
+    let message: String
+    let data: [APIContainer]?
+    let timestamp: Int64?
+
+    struct APIContainer: Codable {
+        let createdAt: String
+        let updatedAt: String
+        let isDeleted: Bool
+        let id: String
+        let name: String
+        let location: String?
+        let description: String?
+        let category: String
+        let isExpirationReminder: Bool
+        let room: String?
+        let floor: String?
+        let status: String
+        let imageUrl: String?
+        let isShareable: Bool
+        let qrCodeUrl: String?
+        let userId: String
+        let capacity: Int
+    }
+}
+
 class DataManager: ObservableObject {
     @Published var containers: [Container] = []
     @Published var items: [Item] = []
-    
+
     static let shared = DataManager()
-    
+
     private let containersKey = "StorageHelper_Containers"
     private let itemsKey = "StorageHelper_Items"
+    private let apiBaseURL = "https://api.epicfish.cn/thingz/api/v1"
     
     private init() {
         loadData()
@@ -235,8 +264,94 @@ class DataManager: ObservableObject {
         UserDefaults.standard.removeObject(forKey: itemsKey)
     }
     
+    // MARK: - API数据获取
+
+    func fetchContainersFromAPI() async -> Bool {
+        guard let authManager = AuthManager.shared as AuthManager?,
+              let token = authManager.authToken else {
+            print("No authentication token available")
+            return false
+        }
+
+        guard let url = URL(string: "\(apiBaseURL)/containers") else {
+            print("Invalid API URL")
+            return false
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("*/*", forHTTPHeaderField: "Accept")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.timeoutInterval = 30.0
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+
+            guard let httpResponse = response as? HTTPURLResponse else {
+                print("Invalid response")
+                return false
+            }
+
+            if httpResponse.statusCode == 200 {
+                let apiResponse = try JSONDecoder().decode(APIContainerResponse.self, from: data)
+
+                if apiResponse.code == 200, let apiContainers = apiResponse.data {
+                    // 转换API容器为本地Container对象
+                    var newContainers: [Container] = []
+
+                    for apiContainer in apiContainers {
+                        // 根据API的category字段映射到ContainerType
+                        let containerType: ContainerType
+                        switch apiContainer.category {
+                        case "冰箱":
+                            containerType = .refrigerator
+                        case "箱子":
+                            containerType = .box
+                        case "衣柜":
+                            containerType = .wardrobe
+                        case "抽屉":
+                            containerType = .drawer
+                        case "储物柜":
+                            containerType = .cabinet
+                        default:
+                            containerType = .box // 默认使用box类型
+                        }
+
+                        let container = Container(
+                            name: apiContainer.name,
+                            type: containerType,
+                            location: apiContainer.location ?? "未设置位置",
+                            capacity: apiContainer.capacity
+                        )
+
+                        newContainers.append(container)
+                    }
+
+                    // 更新本地容器列表
+                    await MainActor.run {
+                        self.containers = newContainers
+                        self.saveData()
+                    }
+
+                    print("Successfully fetched \(newContainers.count) containers from API")
+                    return true
+                } else {
+                    print("API response error: \(apiResponse.message)")
+                    return false
+                }
+            } else {
+                print("HTTP error: \(httpResponse.statusCode)")
+                return false
+            }
+        } catch {
+            print("Error fetching containers from API: \(error.localizedDescription)")
+            return false
+        }
+    }
+
     // MARK: - 示例数据
-    
+
     func loadSampleData() {
         // 创建示例容器
         let wardrobe = Container(name: "主卧衣柜", type: .wardrobe, location: "主卧", capacity: 50)

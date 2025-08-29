@@ -223,7 +223,7 @@ struct ContainerDetailView: View {
                             
                             if items.isEmpty {
                                 ContainerEmptyStateView(
-                                    title: "小窝还是空的呢 🥺",
+                                    title: "容器还是空的呢",
                                     message: "快去添加一些宝贝物品吧～",
                                     iconName: "heart.circle"
                                 )
@@ -241,7 +241,7 @@ struct ContainerDetailView: View {
                     .padding(.bottom, 30)
                 }
             }
-            .navigationTitle("小窝详情 🏠")
+            .navigationTitle("容器详情")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
