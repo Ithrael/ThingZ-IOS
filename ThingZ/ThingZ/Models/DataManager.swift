@@ -29,6 +29,46 @@ struct APIContainerResponse: Codable {
     }
 }
 
+// 单个容器详情响应模型
+struct APIContainerDetailResponse: Codable {
+    let code: Int
+    let message: String
+    let data: APIContainer?
+    let timestamp: Int64?
+    
+    struct APIContainer: Codable {
+        let createdAt: String
+        let updatedAt: String
+        let isDeleted: Bool
+        let id: String
+        let name: String
+        let location: String?
+        let description: String?
+        let category: String
+        let isExpirationReminder: Bool
+        let room: String?
+        let floor: String?
+        let status: String
+        let imageUrl: String?
+        let isShareable: Bool
+        let qrCodeUrl: String?
+        let userId: String
+        let capacity: Int
+    }
+}
+
+// 更新容器请求模型
+struct UpdateContainerRequest: Codable {
+    let name: String
+    let location: String?
+    let description: String?
+    let isExpirationReminder: Bool
+    let room: String?
+    let floor: String?
+    let imageUrl: String?
+    let isShareable: Bool
+}
+
 class DataManager: ObservableObject {
     @Published var containers: [Container] = []
     @Published var items: [Item] = []
@@ -322,7 +362,8 @@ class DataManager: ObservableObject {
                             name: apiContainer.name,
                             type: containerType,
                             location: apiContainer.location ?? "未设置位置",
-                            capacity: apiContainer.capacity
+                            capacity: apiContainer.capacity,
+                            apiId: apiContainer.id
                         )
 
                         newContainers.append(container)
@@ -346,6 +387,113 @@ class DataManager: ObservableObject {
             }
         } catch {
             print("Error fetching containers from API: \(error.localizedDescription)")
+            return false
+        }
+    }
+    
+    // 获取单个容器详情
+    func fetchContainerDetail(containerId: String) async -> APIContainerDetailResponse.APIContainer? {
+        let authManager = AuthManager.shared
+        guard let token = authManager.authToken else {
+            print("No authentication token available")
+            return nil
+        }
+
+        guard let url = URL(string: "\(apiBaseURL)/containers/\(containerId)") else {
+            print("Invalid API URL")
+            return nil
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("*/*", forHTTPHeaderField: "Accept")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.timeoutInterval = 30.0
+
+        print("Making request to: \(url.absoluteString)")
+        print("Authorization header: Bearer \(String(token.prefix(20)))...")
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+
+            guard let httpResponse = response as? HTTPURLResponse else {
+                print("Invalid response")
+                return nil
+            }
+
+            print("Response status code: \(httpResponse.statusCode)")
+            
+            if httpResponse.statusCode == 200 {
+                let apiResponse = try JSONDecoder().decode(APIContainerDetailResponse.self, from: data)
+
+                if apiResponse.code == 200 {
+                    print("Successfully fetched container detail")
+                    return apiResponse.data
+                } else {
+                    print("API response error: \(apiResponse.message)")
+                    return nil
+                }
+            } else {
+                print("HTTP error: \(httpResponse.statusCode)")
+                if let responseString = String(data: data, encoding: .utf8) {
+                    print("Response body: \(responseString)")
+                }
+                return nil
+            }
+        } catch {
+            print("Error fetching container detail: \(error.localizedDescription)")
+            return nil
+        }
+    }
+    
+    // 更新容器信息
+    func updateContainerInfo(containerId: String, request: UpdateContainerRequest) async -> Bool {
+        let authManager = AuthManager.shared
+        guard let token = authManager.authToken else {
+            print("No authentication token available")
+            return false
+        }
+
+        guard let url = URL(string: "\(apiBaseURL)/containers/\(containerId)") else {
+            print("Invalid API URL")
+            return false
+        }
+
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "PUT"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.setValue("*/*", forHTTPHeaderField: "Accept")
+        urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        urlRequest.timeoutInterval = 30.0
+
+        do {
+            let requestData = try JSONEncoder().encode(request)
+            urlRequest.httpBody = requestData
+            
+            let (data, response) = try await URLSession.shared.data(for: urlRequest)
+
+            guard let httpResponse = response as? HTTPURLResponse else {
+                print("Invalid response")
+                return false
+            }
+
+            if httpResponse.statusCode == 200 {
+                let apiResponse = try JSONDecoder().decode(APIContainerDetailResponse.self, from: data)
+
+                if apiResponse.code == 200 {
+                    print("Successfully updated container")
+                    return true
+                } else {
+                    print("API response error: \(apiResponse.message)")
+                    return false
+                }
+            } else {
+                print("HTTP error: \(httpResponse.statusCode)")
+                return false
+            }
+        } catch {
+            print("Error updating container: \(error.localizedDescription)")
             return false
         }
     }
@@ -374,4 +522,4 @@ class DataManager: ObservableObject {
         
         saveData()
     }
-} 
+}

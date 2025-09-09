@@ -4,6 +4,7 @@ struct ContainerDetailView: View {
     let container: Container
     @EnvironmentObject var dataManager: DataManager
     @Environment(\.presentationMode) var presentationMode
+    @State private var showingEditView = false
 
     
     var items: [Item] {
@@ -154,14 +155,20 @@ struct ContainerDetailView: View {
                                 
                                 // 容量进度条
                                 VStack(spacing: 8) {
+                                    let utilization = container.capacity > 0 ? Double(items.count) / Double(container.capacity) : 0
+                                    let utilizationPercentage = Int(utilization * 100)
+                                    let progressWidth = max(0, CGFloat(utilization) * UIScreen.main.bounds.width * 0.8)
+                                    let progressColor = utilization > 0.8 ? Color(red: 1.0, green: 0.6, blue: 0.6) :
+                                                       utilization > 0.6 ? Color(red: 1.0, green: 0.8, blue: 0.4) :
+                                                       Color(red: 0.7, green: 0.9, blue: 0.7)
+                                    
                                     HStack {
                                         Text("容量使用情况")
                                             .font(.subheadline)
                                             .fontWeight(.medium)
                                             .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
                                         Spacer()
-                                        let utilization = container.capacity > 0 ? Double(items.count) / Double(container.capacity) : 0
-                                        Text("\(Int(utilization * 100))%")
+                                        Text("\(utilizationPercentage)%")
                                             .font(.subheadline)
                                             .fontWeight(.bold)
                                             .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
@@ -172,20 +179,15 @@ struct ContainerDetailView: View {
                                             .fill(Color(red: 1.0, green: 0.9, blue: 0.95))
                                             .frame(height: 12)
                                         
-                                        let utilization = container.capacity > 0 ? Double(items.count) / Double(container.capacity) : 0
                                         RoundedRectangle(cornerRadius: 10)
                                             .fill(
                                                 LinearGradient(
-                                                    gradient: Gradient(colors: [
-                                                        utilization > 0.8 ? Color(red: 1.0, green: 0.6, blue: 0.6) :
-                                                        utilization > 0.6 ? Color(red: 1.0, green: 0.8, blue: 0.4) :
-                                                        Color(red: 0.7, green: 0.9, blue: 0.7)
-                                                    ]),
+                                                    gradient: Gradient(colors: [progressColor]),
                                                     startPoint: .leading,
                                                     endPoint: .trailing
                                                 )
                                             )
-                                            .frame(width: max(0, CGFloat(utilization) * UIScreen.main.bounds.width * 0.8), height: 12)
+                                            .frame(width: progressWidth, height: 12)
                                             .animation(.easeInOut(duration: 1.0), value: utilization)
                                     }
                                 }
@@ -244,6 +246,14 @@ struct ContainerDetailView: View {
             .navigationTitle("容器详情")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("编辑") {
+                        showingEditView = true
+                    }
+                    .foregroundColor(Color(red: 1.0, green: 0.75, blue: 0.8))
+                    .fontWeight(.medium)
+                }
+                
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("完成") {
                         presentationMode.wrappedValue.dismiss()
@@ -252,9 +262,18 @@ struct ContainerDetailView: View {
                     .fontWeight(.medium)
                 }
             }
+            .sheet(isPresented: $showingEditView) {
+                    if let apiId = container.apiId {
+                        ContainerEditView(containerId: apiId)
+                            .environmentObject(dataManager)
+                    } else {
+                        Text("无法编辑：缺少容器ID")
+                    }
+                }
+            }
         }
     }
-}
+
 
 // 容器内物品行视图
 struct ContainerItemRowView: View {
@@ -371,4 +390,4 @@ struct ContainerItemRowView: View {
     let sampleContainer = Container(name: "主卧衣柜", type: .wardrobe, location: "主卧", capacity: 50)
     return ContainerDetailView(container: sampleContainer)
         .environmentObject(DataManager.shared)
-} 
+}
