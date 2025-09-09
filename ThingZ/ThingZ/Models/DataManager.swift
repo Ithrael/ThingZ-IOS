@@ -363,7 +363,8 @@ class DataManager: ObservableObject {
                             type: containerType,
                             location: apiContainer.location ?? "未设置位置",
                             capacity: apiContainer.capacity,
-                            apiId: apiContainer.id
+                            apiId: apiContainer.id,
+                            imageUrl: apiContainer.imageUrl
                         )
 
                         newContainers.append(container)

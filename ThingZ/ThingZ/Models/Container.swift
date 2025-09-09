@@ -10,6 +10,7 @@ struct Container: Identifiable, Codable, Hashable {
     var location: String
     var capacity: Int
     var coverImageData: Data?
+    var imageUrl: String? // 从API获取的图片链接
     var items: [Item] = []
     var createdAt: Date = Date()
     var updatedAt: Date = Date()
@@ -40,13 +41,14 @@ struct Container: Identifiable, Codable, Hashable {
     }
     
     // 构造函数
-    init(name: String, type: ContainerType, location: String, capacity: Int = 50, coverImageData: Data? = nil, apiId: String? = nil) {
+    init(name: String, type: ContainerType, location: String, capacity: Int = 50, coverImageData: Data? = nil, apiId: String? = nil, imageUrl: String? = nil) {
         self.name = name
         self.type = type
         self.location = location
         self.capacity = capacity
         self.coverImageData = coverImageData
         self.apiId = apiId
+        self.imageUrl = imageUrl
     }
     
     // 更新方法

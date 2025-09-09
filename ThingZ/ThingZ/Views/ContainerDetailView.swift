@@ -51,9 +51,23 @@ struct ContainerDetailView: View {
                                             y: 8
                                         )
                                     
-                                    Image(systemName: container.type.icon)
-                                        .font(.system(size: 40))
-                                        .foregroundColor(.white)
+                                    if let imageUrl = container.imageUrl, let url = URL(string: imageUrl) {
+                                        AsyncImage(url: url) { image in
+                                            image
+                                                .resizable()
+                                                .aspectRatio(contentMode: .fill)
+                                                .frame(width: 90, height: 90)
+                                                .clipShape(Circle())
+                                        } placeholder: {
+                                            Image(systemName: container.type.icon)
+                                                .font(.system(size: 40))
+                                                .foregroundColor(.white)
+                                        }
+                                    } else {
+                                        Image(systemName: container.type.icon)
+                                            .font(.system(size: 40))
+                                            .foregroundColor(.white)
+                                    }
                                 }
                                 
                                 VStack(spacing: 8) {

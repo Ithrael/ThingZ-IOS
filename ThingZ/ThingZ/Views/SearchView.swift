@@ -545,9 +545,23 @@ struct ContainerSearchRow: View {
                         y: 4
                     )
                 
-                Image(systemName: container.type.icon)
-                    .foregroundColor(.white)
-                    .font(.title2)
+                if let imageUrl = container.imageUrl, let url = URL(string: imageUrl) {
+                    AsyncImage(url: url) { image in
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: 50, height: 50)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                    } placeholder: {
+                        Image(systemName: container.type.icon)
+                            .foregroundColor(.white)
+                            .font(.title2)
+                    }
+                } else {
+                    Image(systemName: container.type.icon)
+                        .foregroundColor(.white)
+                        .font(.title2)
+                }
             }
             
             VStack(alignment: .leading, spacing: 6) {
@@ -726,4 +740,4 @@ struct ItemSearchRow: View {
 #Preview {
     SearchView()
         .environmentObject(DataManager.shared)
-} 
+}

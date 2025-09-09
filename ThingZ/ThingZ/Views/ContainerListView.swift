@@ -135,9 +135,23 @@ struct ContainerListView: View {
                             y: 4
                         )
                     
-                    Image(systemName: container.type.icon)
-                        .font(.title2)
-                        .foregroundColor(.white)
+                    if let imageUrl = container.imageUrl, let url = URL(string: imageUrl) {
+                        AsyncImage(url: url) { image in
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                                .frame(width: 50, height: 50)
+                                .clipShape(Circle())
+                        } placeholder: {
+                            Image(systemName: container.type.icon)
+                                .font(.title2)
+                                .foregroundColor(.white)
+                        }
+                    } else {
+                        Image(systemName: container.type.icon)
+                            .font(.title2)
+                            .foregroundColor(.white)
+                    }
                 }
                 
                 VStack(alignment: .leading, spacing: 6) {
