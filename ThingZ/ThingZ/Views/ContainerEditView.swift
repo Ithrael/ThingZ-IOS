@@ -1,4 +1,6 @@
 import SwiftUI
+import UIKit
+import PhotosUI
 
 struct ContainerEditView: View {
     let containerId: String
@@ -18,6 +20,11 @@ struct ContainerEditView: View {
     @State private var isSaving = false
     @State private var showingAlert = false
     @State private var alertMessage = ""
+    @State private var selectedImage: UIImage? = nil
+    @State private var showingImagePicker = false
+    @State private var showingImageSourceOptions = false
+    @State private var isUploading = false
+    @State private var imageSource: UIImagePickerController.SourceType = .photoLibrary
     
     var body: some View {
         NavigationView {
@@ -68,9 +75,58 @@ struct ContainerEditView: View {
                                             y: 8
                                         )
                                     
-                                    Image(systemName: "pencil.circle.fill")
-                                        .font(.system(size: 35))
-                                        .foregroundColor(.white)
+                                    // 容器图片区域
+                                    Button(action: {
+                                        showingImageSourceOptions = true
+                                    }) {
+                                        ZStack {
+                                            if isUploading {
+                                                VStack(spacing: 8) {
+                                                    ProgressView()
+                                                        .scaleEffect(0.8)
+                                                        .tint(.white)
+                                                    Text("上传中")
+                                                        .font(.caption2)
+                                                        .fontWeight(.medium)
+                                                        .foregroundColor(.white)
+                                                }
+                                            } else if let image = selectedImage {
+                                                Image(uiImage: image)
+                                                    .resizable()
+                                                    .aspectRatio(contentMode: .fill)
+                                                    .frame(width: 80, height: 80)
+                                                    .clipShape(Circle())
+                                            } else if !imageUrl.isEmpty, let url = URL(string: imageUrl) {
+                                                AsyncImage(url: url) { phase in
+                                                    switch phase {
+                                                    case .empty:
+                                                        ProgressView()
+                                                            .scaleEffect(0.8)
+                                                            .tint(.white)
+                                                    case .success(let image):
+                                                        image
+                                                            .resizable()
+                                                            .aspectRatio(contentMode: .fill)
+                                                            .frame(width: 80, height: 80)
+                                                            .clipShape(Circle())
+                                                    case .failure:
+                                                        Image(systemName: "photo.badge.plus")
+                                                            .font(.system(size: 30))
+                                                            .foregroundColor(.white)
+                                                    @unknown default:
+                                                        Image(systemName: "pencil.circle.fill")
+                                                            .font(.system(size: 35))
+                                                            .foregroundColor(.white)
+                                                    }
+                                                }
+                                            } else {
+                                                Image(systemName: "photo.badge.plus")
+                                                    .font(.system(size: 30))
+                                                    .foregroundColor(.white)
+                                            }
+                                        }
+                                    }
+                                    .buttonStyle(PlainButtonStyle())
                                 }
                                 
                                 Text("编辑容器信息")
@@ -78,7 +134,6 @@ struct ContainerEditView: View {
                                     .fontWeight(.bold)
                                     .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
                             }
-                            .padding(.top, 20)
                             
                             // 表单区域
                             VStack(spacing: 20) {
@@ -109,7 +164,7 @@ struct ContainerEditView: View {
                                 
                                 // 位置信息
                                 VStack(alignment: .leading, spacing: 8) {
-                                    Text("位置信息 📍")
+                                    Text("位置信息 �")
                                         .font(.headline)
                                         .fontWeight(.semibold)
                                         .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
@@ -159,7 +214,7 @@ struct ContainerEditView: View {
                                     }
                                     
                                     VStack(alignment: .leading, spacing: 8) {
-                                        Text("楼层 🏢")
+                                        Text("楼层 �")
                                             .font(.subheadline)
                                             .fontWeight(.semibold)
                                             .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
@@ -209,31 +264,7 @@ struct ContainerEditView: View {
                                     .frame(minHeight: 80)
                                 }
                                 
-                                // 图片URL
-                                VStack(alignment: .leading, spacing: 8) {
-                                    Text("图片链接 🖼️")
-                                        .font(.headline)
-                                        .fontWeight(.semibold)
-                                        .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
-                                    
-                                    ZStack {
-                                        RoundedRectangle(cornerRadius: 16)
-                                            .fill(Color.white.opacity(0.8))
-                                            .shadow(
-                                                color: Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.2),
-                                                radius: 8,
-                                                x: 0,
-                                                y: 4
-                                            )
-                                        
-                                        TextField("https://...", text: $imageUrl)
-                                            .padding(.horizontal, 16)
-                                            .padding(.vertical, 12)
-                                            .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
-                                    }
-                                    .frame(height: 50)
-                                }
-                                
+
                                 // 开关设置
                                 VStack(spacing: 16) {
                                     // 过期提醒
@@ -348,14 +379,14 @@ struct ContainerEditView: View {
             }
             .navigationTitle("编辑容器")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
+            .toolbar(content: {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("取消") {
                         presentationMode.wrappedValue.dismiss()
                     }
                     .foregroundColor(Color(red: 0.6, green: 0.4, blue: 0.3))
                 }
-            }
+            })
         }
         .onAppear {
             loadContainerDetail()
@@ -364,6 +395,25 @@ struct ContainerEditView: View {
             Button("确定", role: .cancel) { }
         } message: {
             Text(alertMessage)
+        }
+        .sheet(isPresented: $showingImagePicker) {
+            ContainerImagePicker(selectedImage: $selectedImage, sourceType: imageSource)
+                .onDisappear {
+                    if let _ = selectedImage {
+                        uploadImage()
+                    }
+                }
+        }
+        .confirmationDialog("选择图片来源", isPresented: $showingImageSourceOptions, titleVisibility: .visible) {
+            Button("相机") {
+                imageSource = .camera
+                showingImagePicker = true
+            }
+            Button("相册") {
+                imageSource = .photoLibrary
+                showingImagePicker = true
+            }
+            Button("取消", role: .cancel) {}
         }
     }
     
@@ -387,12 +437,116 @@ struct ContainerEditView: View {
                      self.isExpirationReminder = detail.isExpirationReminder
                      self.isShareable = detail.isShareable
                      self.isLoading = false
+                     
+                     // 如果有图片URL，尝试预加载图片
+                     if let imageUrl = detail.imageUrl, !imageUrl.isEmpty {
+                         print("容器图片URL: \(imageUrl)")
+                     }
                  }
             } else {
                 await MainActor.run {
                     self.alertMessage = "加载容器信息失败，请稍后重试"
                     self.showingAlert = true
                     self.isLoading = false
+                }
+            }
+        }
+    }
+    
+    private func uploadImage() {
+        guard let image = selectedImage else { return }
+        
+        // 显示上传中状态
+        isUploading = true
+        
+        // 压缩图片
+        let maxSize: CGFloat = 800
+        let scale = min(maxSize / image.size.width, maxSize / image.size.height)
+        let newSize = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+        
+        UIGraphicsBeginImageContextWithOptions(newSize, false, 0)
+        image.draw(in: CGRect(origin: .zero, size: newSize))
+        let resizedImage = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+        
+        guard let compressedImage = resizedImage,
+              let imageData = compressedImage.jpegData(compressionQuality: 0.7) else {
+            isUploading = false
+            alertMessage = "图片处理失败"
+            showingAlert = true
+            return
+        }
+        
+        // 准备上传请求
+        let authManager = AuthManager.shared
+        guard let token = authManager.authToken else {
+            isUploading = false
+            alertMessage = "未登录，请先登录"
+            showingAlert = true
+            return
+        }
+        
+        // 创建multipart/form-data请求
+        let boundary = UUID().uuidString
+        let url = URL(string: "https://api.epicfish.cn/thingz/api/v1/file/image/upload")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        request.setValue("*/*", forHTTPHeaderField: "Accept")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        
+        // 构建请求体
+        var body = Data()
+        
+        // 添加文件数据
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"file\"; filename=\"image.jpg\"\r\n".data(using: .utf8)!)
+        body.append("Content-Type: image/jpeg\r\n\r\n".data(using: .utf8)!)
+        body.append(imageData)
+        body.append("\r\n".data(using: .utf8)!)
+        
+        // 结束标记
+        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
+        
+        request.httpBody = body
+        
+        // 执行上传请求
+        Task {
+            do {
+                let (data, response) = try await URLSession.shared.data(for: request)
+                
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    throw NSError(domain: "HTTPError", code: 0, userInfo: [NSLocalizedDescriptionKey: "无效的HTTP响应"])
+                }
+                
+                if httpResponse.statusCode == 200 {
+                    // 解析响应
+                    if let responseString = String(data: data, encoding: .utf8) {
+                        print("上传响应: \(responseString)")
+                    }
+                    
+                    // 尝试解析JSON响应
+                    if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                       let data = json["data"] as? [String: Any],
+                       let fileUrlCDN = data["fileUrlCDN"] as? String {
+                        
+                        await MainActor.run {
+                            self.imageUrl = fileUrlCDN
+                            self.isUploading = false
+                        }
+                        return
+                    }
+                    
+                    throw NSError(domain: "ParseError", code: 0, userInfo: [NSLocalizedDescriptionKey: "无法解析响应数据"])
+                } else {
+                    throw NSError(domain: "HTTPError", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "HTTP错误: \(httpResponse.statusCode)"])
+                }
+            } catch {
+                print("上传错误: \(error.localizedDescription)")
+                await MainActor.run {
+                    self.alertMessage = "图片上传失败: \(error.localizedDescription)"
+                    self.showingAlert = true
+                    self.isUploading = false
                 }
             }
         }
@@ -437,6 +591,46 @@ struct ContainerEditView: View {
                     self.showingAlert = true
                 }
             }
+        }
+    }
+}
+
+// 修改后的ImagePicker，支持指定图片来源
+struct ContainerImagePicker: UIViewControllerRepresentable {
+    @Binding var selectedImage: UIImage?
+    var sourceType: UIImagePickerController.SourceType
+    @Environment(\.presentationMode) var presentationMode
+    
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.delegate = context.coordinator
+        picker.allowsEditing = true
+        picker.sourceType = sourceType
+        return picker
+    }
+    
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+    
+    class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+        let parent: ContainerImagePicker
+        
+        init(_ parent: ContainerImagePicker) {
+            self.parent = parent
+        }
+        
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+            if let image = info[.editedImage] as? UIImage {
+                parent.selectedImage = image
+            }
+            parent.presentationMode.wrappedValue.dismiss()
+        }
+        
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            parent.presentationMode.wrappedValue.dismiss()
         }
     }
 }
