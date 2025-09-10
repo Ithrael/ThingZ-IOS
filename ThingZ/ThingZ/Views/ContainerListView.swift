@@ -61,6 +61,9 @@ struct ContainerListView: View {
                         .padding(.horizontal, 16)
                         .padding(.top, 10)
                     }
+                    .refreshable {
+                        await fetchContainers()
+                    }
                 }
             }
             .navigationTitle("我的小窝 🏠")
