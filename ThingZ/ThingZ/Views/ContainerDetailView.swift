@@ -5,10 +5,20 @@ struct ContainerDetailView: View {
     @EnvironmentObject var dataManager: DataManager
     @Environment(\.presentationMode) var presentationMode
     @State private var showingEditView = false
+    @State private var isRefreshing = false
 
     
     var items: [Item] {
         dataManager.getItems(inContainer: container.id)
+    }
+    
+    @MainActor
+    private func refreshContainerData() async {
+        isRefreshing = true
+        // 这里可以添加重新加载容器数据的逻辑
+        // 例如从API重新获取容器信息和物品列表
+        try? await Task.sleep(nanoseconds: 1_000_000_000) // 模拟网络请求
+        isRefreshing = false
     }
     
     var body: some View {
@@ -255,6 +265,9 @@ struct ContainerDetailView: View {
                         }
                     }
                     .padding(.bottom, 30)
+                }
+                .refreshable {
+                    await refreshContainerData()
                 }
             }
             .navigationTitle("容器详情")
