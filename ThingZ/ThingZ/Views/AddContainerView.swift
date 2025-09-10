@@ -342,7 +342,7 @@ struct AddContainerView: View {
             .navigationTitle("")
             .navigationBarHidden(true)
             .sheet(isPresented: $showingImagePicker) {
-                ImagePicker(selectedImage: $selectedImage)
+                SharedImagePicker(selectedImage: $selectedImage)
             }
         }
     }
@@ -365,4 +365,4 @@ struct AddContainerView: View {
 #Preview {
     AddContainerView()
         .environmentObject(DataManager.shared)
-} 
+}
