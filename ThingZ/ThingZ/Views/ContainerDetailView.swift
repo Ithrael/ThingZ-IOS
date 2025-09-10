@@ -6,18 +6,88 @@ struct ContainerDetailView: View {
     @Environment(\.presentationMode) var presentationMode
     @State private var showingEditView = false
     @State private var isRefreshing = false
+    @State private var isLoading = false
+    @State private var containerDetail: APIContainerDetailResponse.APIContainer?
+    @State private var showingAlert = false
+    @State private var alertMessage = ""
 
     
     var items: [Item] {
         dataManager.getItems(inContainer: container.id)
     }
     
+    // 计算属性：获取要显示的容器信息
+    private var displayContainer: Container {
+        if let apiContainer = containerDetail {
+            // 将APIContainer转换为Container
+            let containerType: ContainerType
+            switch apiContainer.category {
+            case "冰箱":
+                containerType = .refrigerator
+            case "箱子":
+                containerType = .box
+            case "衣柜":
+                containerType = .wardrobe
+            case "抽屉":
+                containerType = .drawer
+            case "储物柜":
+                containerType = .cabinet
+            default:
+                containerType = .box
+            }
+            
+            return Container(
+                name: apiContainer.name,
+                type: containerType,
+                location: apiContainer.location ?? "未设置位置",
+                capacity: apiContainer.capacity,
+                apiId: apiContainer.id,
+                imageUrl: apiContainer.imageUrl
+            )
+        } else {
+            return container
+        }
+    }
+    
+    private func loadContainerDetail() {
+        Task {
+            isLoading = true
+            
+            // 添加调试信息
+            print("AuthManager.shared.isAuthenticated: \(AuthManager.shared.isAuthenticated)")
+            print("AuthManager.shared.authToken != nil: \(AuthManager.shared.authToken != nil)")
+            if let token = AuthManager.shared.authToken {
+                print("Token preview: \(String(token.prefix(20)))...")
+            }
+            
+            if let apiId = container.apiId,
+               let detail = await dataManager.fetchContainerDetail(containerId: apiId) {
+                await MainActor.run {
+                    self.containerDetail = detail
+                    self.isLoading = false
+                }
+            } else {
+                await MainActor.run {
+                    self.alertMessage = "加载容器信息失败，请稍后重试"
+                    self.showingAlert = true
+                    self.isLoading = false
+                }
+            }
+        }
+    }
+    
     @MainActor
     private func refreshContainerData() async {
         isRefreshing = true
-        // 这里可以添加重新加载容器数据的逻辑
-        // 例如从API重新获取容器信息和物品列表
-        try? await Task.sleep(nanoseconds: 1_000_000_000) // 模拟网络请求
+        
+        if let apiId = container.apiId,
+           let detail = await dataManager.fetchContainerDetail(containerId: apiId) {
+            self.containerDetail = detail
+        } else {
+            self.alertMessage = "刷新容器信息失败，请稍后重试"
+            self.showingAlert = true
+        }
+        
         isRefreshing = false
     }
     
@@ -34,6 +104,18 @@ struct ContainerDetailView: View {
                     endPoint: .bottomTrailing
                 )
                 .ignoresSafeArea()
+                
+                if isLoading {
+                    VStack(spacing: 20) {
+                        ProgressView()
+                            .scaleEffect(1.5)
+                            .tint(Color(red: 1.0, green: 0.75, blue: 0.8))
+                        
+                        Text("加载容器信息中...")
+                            .font(.subheadline)
+                            .foregroundColor(Color(red: 0.6, green: 0.4, blue: 0.3))
+                    }
+                } else {
                 
                 ScrollView {
                     VStack(spacing: 24) {
@@ -61,7 +143,7 @@ struct ContainerDetailView: View {
                                             y: 8
                                         )
                                     
-                                    if let imageUrl = container.imageUrl, let url = URL(string: imageUrl) {
+                                    if let imageUrl = displayContainer.imageUrl, let url = URL(string: imageUrl) {
                                         AsyncImage(url: url) { image in
                                             image
                                                 .resizable()
@@ -69,24 +151,24 @@ struct ContainerDetailView: View {
                                                 .frame(width: 90, height: 90)
                                                 .clipShape(Circle())
                                         } placeholder: {
-                                            Image(systemName: container.type.icon)
+                                            Image(systemName: displayContainer.type.icon)
                                                 .font(.system(size: 40))
                                                 .foregroundColor(.white)
                                         }
                                     } else {
-                                        Image(systemName: container.type.icon)
+                                        Image(systemName: displayContainer.type.icon)
                                             .font(.system(size: 40))
                                             .foregroundColor(.white)
                                     }
                                 }
                                 
                                 VStack(spacing: 8) {
-                                    Text(container.name)
+                                    Text(displayContainer.name)
                                         .font(.title2)
                                         .fontWeight(.bold)
                                         .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
                                     
-                                    Text(container.type.displayName)
+                                    Text(displayContainer.type.displayName)
                                         .font(.subheadline)
                                         .fontWeight(.medium)
                                         .padding(.horizontal, 12)
@@ -128,7 +210,7 @@ struct ContainerDetailView: View {
                                                 .foregroundColor(.white)
                                         }
                                         
-                                        Text(container.location)
+                                        Text(displayContainer.location)
                                             .font(.subheadline)
                                             .fontWeight(.medium)
                                             .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
@@ -166,7 +248,7 @@ struct ContainerDetailView: View {
                                                 .foregroundColor(.white)
                                         }
                                         
-                                        Text("\(items.count)/\(container.capacity)")
+                                        Text("\(items.count)/\(displayContainer.capacity)")
                                             .font(.subheadline)
                                             .fontWeight(.bold)
                                             .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
@@ -179,7 +261,7 @@ struct ContainerDetailView: View {
                                 
                                 // 容量进度条
                                 VStack(spacing: 8) {
-                                    let utilization = container.capacity > 0 ? Double(items.count) / Double(container.capacity) : 0
+                                    let utilization = displayContainer.capacity > 0 ? Double(items.count) / Double(displayContainer.capacity) : 0
                                     let utilizationPercentage = Int(utilization * 100)
                                     let progressWidth = max(0, CGFloat(utilization) * UIScreen.main.bounds.width * 0.8)
                                     let progressColor = utilization > 0.8 ? Color(red: 1.0, green: 0.6, blue: 0.6) :
@@ -269,6 +351,7 @@ struct ContainerDetailView: View {
                 .refreshable {
                     await refreshContainerData()
                 }
+                }
             }
             .navigationTitle("容器详情")
             .navigationBarTitleDisplayMode(.inline)
@@ -297,6 +380,14 @@ struct ContainerDetailView: View {
                         Text("无法编辑：缺少容器ID")
                     }
                 }
+            }
+            .onAppear {
+                loadContainerDetail()
+            }
+            .alert("提示", isPresented: $showingAlert) {
+                Button("确定", role: .cancel) { }
+            } message: {
+                Text(alertMessage)
             }
         }
     }
