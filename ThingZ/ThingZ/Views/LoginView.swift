@@ -1,5 +1,5 @@
 import SwiftUI
-import AuthenticationServices
+// import AuthenticationServices  // Apple登录相关，已注释
 
 struct LoginView: View {
     @StateObject private var authManager = AuthManager.shared
@@ -52,7 +52,7 @@ struct LoginView: View {
                             }
                         
                             VStack(spacing: 8) {
-                        Text("ThingZ")
+                        Text("猫搜搜")
                             .font(.largeTitle)
                             .fontWeight(.bold)
                                     .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
@@ -91,10 +91,10 @@ struct LoginView: View {
                             UsernameLoginForm()
                         case .phone:
                             PhoneLoginForm()
-                        case .wechat:
-                            WechatLoginForm()
-                        case .apple:
-                            AppleLoginForm()
+                        // case .wechat:
+                        //     WechatLoginForm()  // 微信登录已注释
+                        // case .apple:
+                        //     AppleLoginForm()   // Apple登录已注释
                         }
                     }
                         .padding(.horizontal, 20)
@@ -436,10 +436,11 @@ struct PhoneLoginForm: View {
     }
 }
 
-// 微信登录表单
+// 微信登录表单 - 已注释
+/*
 struct WechatLoginForm: View {
     @EnvironmentObject var authManager: AuthManager
-    
+
     var body: some View {
         VStack(spacing: 24) {
         VStack(spacing: 20) {
@@ -462,18 +463,18 @@ struct WechatLoginForm: View {
                             x: 0,
                             y: 8
                         )
-                    
+
                 Image(systemName: "message.circle.fill")
                         .font(.system(size: 40))
                         .foregroundColor(.white)
                 }
-                
+
                 VStack(spacing: 8) {
                     Text("使用微信账号登录 💬")
                     .font(.headline)
                         .fontWeight(.semibold)
                         .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
-                
+
                     Text("点击下方按钮跳转到微信进行授权～")
                     .font(.caption)
                         .foregroundColor(Color(red: 0.6, green: 0.4, blue: 0.3))
@@ -481,7 +482,7 @@ struct WechatLoginForm: View {
                 }
             }
             .padding(.vertical, 20)
-            
+
             Button(action: {
                 Task {
                     await authManager.loginWithWechat()
@@ -496,7 +497,7 @@ struct WechatLoginForm: View {
                         Image(systemName: "message.circle")
                             .font(.headline)
                     }
-                    
+
                     Text("微信登录")
                         .font(.headline)
                         .fontWeight(.semibold)
@@ -528,11 +529,13 @@ struct WechatLoginForm: View {
         }
     }
 }
+*/
 
-// Apple ID登录表单
+// Apple ID登录表单 - 已注释
+/*
 struct AppleLoginForm: View {
     @EnvironmentObject var authManager: AuthManager
-    
+
     var body: some View {
         VStack(spacing: 24) {
         VStack(spacing: 20) {
@@ -555,18 +558,18 @@ struct AppleLoginForm: View {
                             x: 0,
                             y: 8
                         )
-                    
+
                 Image(systemName: "applelogo")
                         .font(.system(size: 40))
                         .foregroundColor(.white)
                 }
-                
+
                 VStack(spacing: 8) {
                     Text("使用Apple ID登录 🍎")
                     .font(.headline)
                         .fontWeight(.semibold)
                         .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
-                
+
                     Text("快速、安全地使用您的Apple ID登录～")
                     .font(.caption)
                         .foregroundColor(Color(red: 0.6, green: 0.4, blue: 0.3))
@@ -574,7 +577,7 @@ struct AppleLoginForm: View {
                 }
             }
             .padding(.vertical, 20)
-            
+
             SignInWithAppleButton(
                 onRequest: { request in
                     request.requestedScopes = [.fullName, .email]
@@ -605,6 +608,7 @@ struct AppleLoginForm: View {
         }
     }
 }
+*/
 
 #Preview {
     LoginView()

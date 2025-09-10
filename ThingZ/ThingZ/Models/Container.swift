@@ -4,11 +4,13 @@ import SwiftUI
 // 容器数据模型
 struct Container: Identifiable, Codable, Hashable {
     let id = UUID()
+    var apiId: String? // 从API获取的容器ID
     var name: String
     var type: ContainerType
     var location: String
     var capacity: Int
     var coverImageData: Data?
+    var imageUrl: String? // 从API获取的图片链接
     var items: [Item] = []
     var createdAt: Date = Date()
     var updatedAt: Date = Date()
@@ -39,12 +41,14 @@ struct Container: Identifiable, Codable, Hashable {
     }
     
     // 构造函数
-    init(name: String, type: ContainerType, location: String, capacity: Int = 50, coverImageData: Data? = nil) {
+    init(name: String, type: ContainerType, location: String, capacity: Int = 50, coverImageData: Data? = nil, apiId: String? = nil, imageUrl: String? = nil) {
         self.name = name
         self.type = type
         self.location = location
         self.capacity = capacity
         self.coverImageData = coverImageData
+        self.apiId = apiId
+        self.imageUrl = imageUrl
     }
     
     // 更新方法
@@ -80,4 +84,4 @@ struct Container: Identifiable, Codable, Hashable {
     func getItems(ofType type: ItemType) -> [Item] {
         return items.filter { $0.type == type }
     }
-} 
+}

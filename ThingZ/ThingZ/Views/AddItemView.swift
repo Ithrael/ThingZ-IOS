@@ -145,7 +145,7 @@ struct AddItemView: View {
                 }
             }
             .sheet(isPresented: $showingImagePicker) {
-                ImagePicker(selectedImage: $selectedImage)
+                SharedImagePicker(selectedImage: $selectedImage)
             }
         }
     }
@@ -327,4 +327,4 @@ struct MiscellaneousPropertiesSection: View {
 #Preview {
     AddItemView()
         .environmentObject(DataManager.shared)
-} 
+}

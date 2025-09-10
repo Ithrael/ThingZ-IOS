@@ -1,6 +1,6 @@
 import Foundation
 import SwiftUI
-import AuthenticationServices
+// import AuthenticationServices  // Apple登录相关，已注释
 
 // 用户模型
 struct User: Codable, Identifiable {
@@ -64,24 +64,24 @@ struct LoginResponse: Codable {
 enum LoginMethod: String, Codable, CaseIterable {
     case username = "username"
     case phone = "phone"
-    case wechat = "wechat"
-    case apple = "apple"
-    
+    // case wechat = "wechat"  // 微信登录已注释
+    // case apple = "apple"    // Apple登录已注释
+
     var displayName: String {
         switch self {
         case .username: return "账号密码"
         case .phone: return "手机号"
-        case .wechat: return "微信"
-        case .apple: return "Apple ID"
+        // case .wechat: return "微信"      // 微信登录已注释
+        // case .apple: return "Apple ID"   // Apple登录已注释
         }
     }
-    
+
     var icon: String {
         switch self {
         case .username: return "person.circle"
         case .phone: return "phone.circle"
-        case .wechat: return "message.circle"
-        case .apple: return "applelogo"
+        // case .wechat: return "message.circle"  // 微信登录已注释
+        // case .apple: return "applelogo"        // Apple登录已注释
         }
     }
 }
@@ -391,59 +391,63 @@ class AuthManager: ObservableObject {
         }
     }
     
-    // 微信登录
+    // 微信登录 - 已注释
+    /*
     func loginWithWechat() async -> LoginResult {
         DispatchQueue.main.async {
             self.isLoading = true
             self.errorMessage = ""
         }
-        
+
         // 模拟网络请求
         await Task.sleep(1_500_000_000) // 1.5秒延迟
-        
+
         // 模拟微信登录成功
         let user = User(
             username: "微信用户",
             loginMethod: .wechat
         )
-        
+
         DispatchQueue.main.async {
             self.currentUser = user
             self.isAuthenticated = true
             self.isLoading = false
             self.saveAuthState()
         }
-        
+
         return .success(user)
     }
+    */
     
-    // Apple ID登录
+    // Apple ID登录 - 已注释
+    /*
     func loginWithApple(authorization: ASAuthorization) -> LoginResult {
         guard let appleIDCredential = authorization.credential as? ASAuthorizationAppleIDCredential else {
             return .failure("Apple ID 认证失败")
         }
-        
+
         let userIdentifier = appleIDCredential.user
         let fullName = appleIDCredential.fullName
         let email = appleIDCredential.email
-        
+
         let username = fullName?.givenName ?? "Apple用户"
-        
+
         let user = User(
             username: username,
             email: email,
             loginMethod: .apple
         )
-        
+
         DispatchQueue.main.async {
             self.currentUser = user
             self.isAuthenticated = true
             self.isLoading = false
             self.saveAuthState()
         }
-        
+
         return .success(user)
     }
+    */
     
     // 发送验证码
     func sendVerificationCode(to phoneNumber: String) async -> Bool {

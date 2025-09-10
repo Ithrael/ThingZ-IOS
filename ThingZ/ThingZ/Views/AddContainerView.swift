@@ -54,7 +54,7 @@ struct AddContainerView: View {
                                     .foregroundColor(.white)
                             }
                             
-                            Text("创建新的小窝 🏠")
+                            Text("创建新的容器")
                                 .font(.title2)
                                 .fontWeight(.bold)
                                 .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
@@ -284,7 +284,7 @@ struct AddContainerView: View {
                         // 保存按钮
                         VStack(spacing: 16) {
                             Button(action: saveContainer) {
-                                Text("创建我的小窝 🎉")
+                                Text("创建我的容器 🎉")
                                     .font(.headline)
                                     .fontWeight(.semibold)
                                     .foregroundColor(.white)
@@ -342,7 +342,7 @@ struct AddContainerView: View {
             .navigationTitle("")
             .navigationBarHidden(true)
             .sheet(isPresented: $showingImagePicker) {
-                ImagePicker(selectedImage: $selectedImage)
+                SharedImagePicker(selectedImage: $selectedImage)
             }
         }
     }
@@ -365,4 +365,4 @@ struct AddContainerView: View {
 #Preview {
     AddContainerView()
         .environmentObject(DataManager.shared)
-} 
+}
