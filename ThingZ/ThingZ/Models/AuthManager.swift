@@ -86,15 +86,26 @@ enum LoginMethod: String, Codable, CaseIterable {
     }
 }
 
+// 认证状态枚举
+enum AuthState {
+    case unauthenticated
+    case needsProfileSetup
+    case authenticated
+}
+
 // 登录结果
 enum LoginResult {
     case success(User)
+    case needsProfileSetup(String) // 需要完善个人信息，传入手机号
     case failure(String)
 }
 
 // 认证管理器
 class AuthManager: ObservableObject {
+    @Published var authState: AuthState = .unauthenticated
     @Published var isAuthenticated: Bool = false
+    @Published var needsProfileSetup: Bool = false
+    @Published var pendingPhoneNumber: String = ""
     @Published var currentUser: User?
     @Published var isLoading: Bool = false
     @Published var errorMessage: String = ""
