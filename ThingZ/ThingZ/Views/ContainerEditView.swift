@@ -15,6 +15,8 @@ struct ContainerEditView: View {
     @State private var imageUrl = ""
     @State private var isExpirationReminder = false
     @State private var isShareable = false
+    @State private var category = ""
+    @State private var capacity = 50
     
     @State private var isLoading = true
     @State private var isSaving = false
@@ -419,35 +421,33 @@ struct ContainerEditView: View {
     
     private func loadContainerDetail() {
         Task {
-            // 添加调试信息
-            print("AuthManager.shared.isAuthenticated: \(AuthManager.shared.isAuthenticated)")
-            print("AuthManager.shared.authToken != nil: \(AuthManager.shared.authToken != nil)")
-            if let token = AuthManager.shared.authToken {
-                print("Token preview: \(String(token.prefix(20)))...")
-            }
-            
-            if let detail = await dataManager.fetchContainerDetail(containerId: containerId) {
-                 await MainActor.run {
-                     self.name = detail.name
-                     self.location = detail.location ?? ""
-                     self.description = detail.description ?? ""
-                     self.room = detail.room ?? ""
-                     self.floor = detail.floor ?? ""
-                     self.imageUrl = detail.imageUrl ?? ""
-                     self.isExpirationReminder = detail.isExpirationReminder
-                     self.isShareable = detail.isShareable
-                     self.isLoading = false
-                     
-                     // 如果有图片URL，尝试预加载图片
-                     if let imageUrl = detail.imageUrl, !imageUrl.isEmpty {
-                         print("容器图片URL: \(imageUrl)")
-                     }
-                 }
-            } else {
+            do {
+                let detail = try await ContainerAPIService.shared.getContainerDetail(containerId: containerId)
+
                 await MainActor.run {
-                    self.alertMessage = "加载容器信息失败，请稍后重试"
+                    self.name = detail.name
+                    self.location = detail.location ?? ""
+                    self.description = detail.description ?? ""
+                    self.room = detail.room ?? ""
+                    self.floor = detail.floor ?? ""
+                    self.imageUrl = detail.imageUrl ?? ""
+                    self.isExpirationReminder = detail.isExpirationReminder
+                    self.isShareable = detail.isShareable
+                    self.category = detail.category
+                    self.capacity = detail.capacity
+                    self.isLoading = false
+
+                    print("容器信息加载成功: \(detail.name)")
+                    if let imageUrl = detail.imageUrl, !imageUrl.isEmpty {
+                        print("容器图片URL: \(imageUrl)")
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    self.alertMessage = "加载容器信息失败: \(error.localizedDescription)"
                     self.showingAlert = true
                     self.isLoading = false
+                    print("加载容器信息失败: \(error)")
                 }
             }
         }
@@ -455,98 +455,27 @@ struct ContainerEditView: View {
     
     private func uploadImage() {
         guard let image = selectedImage else { return }
-        
-        // 显示上传中状态
+
         isUploading = true
-        
-        // 压缩图片
-        let maxSize: CGFloat = 800
-        let scale = min(maxSize / image.size.width, maxSize / image.size.height)
-        let newSize = CGSize(width: image.size.width * scale, height: image.size.height * scale)
-        
-        UIGraphicsBeginImageContextWithOptions(newSize, false, 0)
-        image.draw(in: CGRect(origin: .zero, size: newSize))
-        let resizedImage = UIGraphicsGetImageFromCurrentImageContext()
-        UIGraphicsEndImageContext()
-        
-        guard let compressedImage = resizedImage,
-              let imageData = compressedImage.jpegData(compressionQuality: 0.7) else {
-            isUploading = false
-            alertMessage = "图片处理失败"
-            showingAlert = true
-            return
-        }
-        
-        // 准备上传请求
-        let authManager = AuthManager.shared
-        guard let token = authManager.authToken else {
-            isUploading = false
-            alertMessage = "未登录，请先登录"
-            showingAlert = true
-            return
-        }
-        
-        // 创建multipart/form-data请求
-        let boundary = UUID().uuidString
-        let url = URL(string: "https://api.epicfish.cn/thingz/api/v1/file/image/upload")!
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-        request.setValue("*/*", forHTTPHeaderField: "Accept")
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        
-        // 构建请求体
-        var body = Data()
-        
-        // 添加文件数据
-        body.append("--\(boundary)\r\n".data(using: .utf8)!)
-        body.append("Content-Disposition: form-data; name=\"file\"; filename=\"image.jpg\"\r\n".data(using: .utf8)!)
-        body.append("Content-Type: image/jpeg\r\n\r\n".data(using: .utf8)!)
-        body.append(imageData)
-        body.append("\r\n".data(using: .utf8)!)
-        
-        // 结束标记
-        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
-        
-        request.httpBody = body
-        
-        // 执行上传请求
+
         Task {
             do {
-                let (data, response) = try await URLSession.shared.data(for: request)
-                
-                guard let httpResponse = response as? HTTPURLResponse else {
-                    throw NSError(domain: "HTTPError", code: 0, userInfo: [NSLocalizedDescriptionKey: "无效的HTTP响应"])
-                }
-                
-                if httpResponse.statusCode == 200 {
-                    // 解析响应
-                    if let responseString = String(data: data, encoding: .utf8) {
-                        print("上传响应: \(responseString)")
-                    }
-                    
-                    // 尝试解析JSON响应
-                    if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                       let data = json["data"] as? [String: Any],
-                       let fileUrlCDN = data["fileUrlCDN"] as? String {
-                        
-                        await MainActor.run {
-                            self.imageUrl = fileUrlCDN
-                            self.isUploading = false
-                        }
-                        return
-                    }
-                    
-                    throw NSError(domain: "ParseError", code: 0, userInfo: [NSLocalizedDescriptionKey: "无法解析响应数据"])
-                } else {
-                    throw NSError(domain: "HTTPError", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "HTTP错误: \(httpResponse.statusCode)"])
+                let uploadedUrl = try await FileUploadService.shared.processAndUploadImage(
+                    image,
+                    type: .image
+                )
+
+                await MainActor.run {
+                    self.imageUrl = uploadedUrl
+                    self.isUploading = false
+                    print("图片上传成功: \(uploadedUrl)")
                 }
             } catch {
-                print("上传错误: \(error.localizedDescription)")
                 await MainActor.run {
                     self.alertMessage = "图片上传失败: \(error.localizedDescription)"
                     self.showingAlert = true
                     self.isUploading = false
+                    print("图片上传失败: \(error)")
                 }
             }
         }
@@ -558,37 +487,45 @@ struct ContainerEditView: View {
             showingAlert = true
             return
         }
-        
+
         isSaving = true
-        
-        let request = UpdateContainerRequest(
+
+        let request = UpdateContainerAPIRequest(
             name: name,
+            category: category.isEmpty ? nil : category,
             location: location.isEmpty ? nil : location,
             description: description.isEmpty ? nil : description,
-            isExpirationReminder: isExpirationReminder,
+            capacity: capacity,
             room: room.isEmpty ? nil : room,
             floor: floor.isEmpty ? nil : floor,
-            imageUrl: imageUrl.isEmpty ? nil : imageUrl,
-            isShareable: isShareable
+            isShareable: isShareable,
+            isExpirationReminder: isExpirationReminder,
+            imageUrl: imageUrl.isEmpty ? nil : imageUrl
         )
-        
+
         Task {
-            let success = await dataManager.updateContainerInfo(containerId: containerId, request: request)
-            
-            await MainActor.run {
-                self.isSaving = false
-                
-                if success {
+            do {
+                let _ = try await ContainerAPIService.shared.updateContainer(
+                    containerId: containerId,
+                    request: request
+                )
+
+                await MainActor.run {
+                    self.isSaving = false
                     self.alertMessage = "容器信息更新成功！"
                     self.showingAlert = true
-                    
+
                     // 延迟关闭页面
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
                         self.presentationMode.wrappedValue.dismiss()
                     }
-                } else {
-                    self.alertMessage = "更新失败，请稍后重试"
+                }
+            } catch {
+                await MainActor.run {
+                    self.isSaving = false
+                    self.alertMessage = "更新失败: \(error.localizedDescription)"
                     self.showingAlert = true
+                    print("更新容器失败: \(error)")
                 }
             }
         }

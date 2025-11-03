@@ -16,48 +16,38 @@ struct User: Codable, Identifiable {
 
 // API请求和响应模型
 struct SendSmsCodeRequest: Codable {
-    let phone: String
-    let type: String
+    let mobile: String
 }
 
 struct SmsLoginRequest: Codable {
-    let phone: String
+    let mobile: String
     let code: String
-    let rememberMe: Bool
 }
 
 struct LoginRequest: Codable {
-    let phone: String
+    let mobile: String
     let password: String
-    let rememberMe: Bool
 }
 
 struct LoginResponse: Codable {
-    let code: Int
-    let message: String
-    let data: LoginData?
-    let timestamp: Int64?
+    let token: String
+    let tokenType: String
+    let expiresIn: Int
+    let userInfo: UserInfo
     
-    struct LoginData: Codable {
-        let accessToken: String
-        let refreshToken: String
-        let tokenType: String
-        let expiresIn: Int
-        let user: APIUser
+    struct UserInfo: Codable {
+        let id: Int
+        let mobile: String
+        let nickname: String?
+        let avatar: String?
+        let status: Int
+        let createdAt: String
+        let updatedAt: String
     }
-    
-    struct APIUser: Codable {
-        let id: String
-        let username: String?
-        let phone: String
-        let email: String?
-        let avatarUrl: String?
-        let nick: String?
-        let status: String?
-        let createdAt: String?
-        let updatedAt: String?
-        let isDeleted: String?
-    }
+}
+
+struct SendCodeResponse: Codable {
+    let success: Bool
 }
 
 // 登录方式枚举
@@ -112,9 +102,9 @@ class AuthManager: ObservableObject {
     
     static let shared = AuthManager()
     
-    private let apiBaseURL = "https://api.epicfish.cn/thingz/api/v1"
+    private let apiBaseURL = "https://api.anyongtech.cn"
     private let tokenKey = "AuthManager_Token"
-    
+
     var authToken: String? {
         get {
             UserDefaults.standard.string(forKey: tokenKey)
@@ -133,7 +123,7 @@ class AuthManager: ObservableObject {
     
     // MARK: - 数据持久化
     
-    private func saveAuthState() {
+    func saveAuthState() {
         UserDefaults.standard.set(isAuthenticated, forKey: authKey)
         if let user = currentUser {
             if let encoded = try? JSONEncoder().encode(user) {
@@ -180,9 +170,8 @@ class AuthManager: ObservableObject {
         // 调用API
         do {
             let loginRequest = LoginRequest(
-                phone: username, // 使用用户名作为手机号
-                password: password,
-                rememberMe: true
+                mobile: username, // 使用用户名作为手机号
+                password: password
             )
             
             let user = try await performLogin(request: loginRequest)
@@ -207,7 +196,7 @@ class AuthManager: ObservableObject {
     
     // 执行登录API请求
     private func performLogin(request: LoginRequest) async throws -> User {
-        guard let url = URL(string: "\(apiBaseURL)/auth/login") else {
+        guard let url = URL(string: "\(apiBaseURL)/user/login") else {
             throw NSError(domain: "AuthError", code: -1, userInfo: [
                 NSLocalizedDescriptionKey: "无效的API地址"
             ])
@@ -233,32 +222,32 @@ class AuthManager: ObservableObject {
             // 根据HTTP状态码判断
             if httpResponse.statusCode == 200 {
                 // 解析响应
-                let loginResponse = try JSONDecoder().decode(LoginResponse.self, from: data)
+                let apiResponse = try JSONDecoder().decode(APIResponse<LoginResponse>.self, from: data)
                 
-                if loginResponse.code == 200, let loginData = loginResponse.data {
+                if apiResponse.code == 200, let loginData = apiResponse.data {
                     // 保存token
-                    self.authToken = loginData.accessToken
-                    
+                    self.authToken = loginData.token
+
                     // 创建用户对象
                     let user = User(
-                        username: loginData.user.username ?? loginData.user.phone,
-                        email: loginData.user.email,
-                        phoneNumber: loginData.user.phone,
-                        avatar: loginData.user.avatarUrl,
+                        username: loginData.userInfo.nickname ?? loginData.userInfo.mobile,
+                        email: nil,
+                        phoneNumber: loginData.userInfo.mobile,
+                        avatar: loginData.userInfo.avatar,
                         loginMethod: .username
                     )
-                    
+
                     return user
                 } else {
-                    throw NSError(domain: "AuthError", code: loginResponse.code, userInfo: [
-                        NSLocalizedDescriptionKey: loginResponse.message
+                    throw NSError(domain: "AuthError", code: apiResponse.code, userInfo: [
+                        NSLocalizedDescriptionKey: apiResponse.message
                     ])
                 }
             } else {
                 // 尝试解析错误响应
-                if let loginResponse = try? JSONDecoder().decode(LoginResponse.self, from: data) {
-                    throw NSError(domain: "AuthError", code: loginResponse.code, userInfo: [
-                        NSLocalizedDescriptionKey: loginResponse.message
+                if let apiResponse = try? JSONDecoder().decode(APIResponse<LoginResponse>.self, from: data) {
+                    throw NSError(domain: "AuthError", code: apiResponse.code, userInfo: [
+                        NSLocalizedDescriptionKey: apiResponse.message
                     ])
                 } else {
                     throw NSError(domain: "AuthError", code: httpResponse.statusCode, userInfo: [
@@ -310,9 +299,8 @@ class AuthManager: ObservableObject {
         // 调用API
         do {
             let loginRequest = SmsLoginRequest(
-                phone: phoneNumber,
-                code: verificationCode,
-                rememberMe: true
+                mobile: phoneNumber,
+                code: verificationCode
             )
             
             let user = try await performSmsLogin(request: loginRequest)
@@ -337,7 +325,7 @@ class AuthManager: ObservableObject {
     
     // 执行短信登录API请求
     private func performSmsLogin(request: SmsLoginRequest) async throws -> User {
-        guard let url = URL(string: "\(apiBaseURL)/auth/sms-login") else {
+        guard let url = URL(string: "\(apiBaseURL)/user/api/auth/sms/login") else {
             throw NSError(domain: "AuthError", code: -1, userInfo: [
                 NSLocalizedDescriptionKey: "无效的API地址"
             ])
@@ -363,32 +351,32 @@ class AuthManager: ObservableObject {
             // 根据HTTP状态码判断
             if httpResponse.statusCode == 200 {
                 // 解析响应
-                let loginResponse = try JSONDecoder().decode(LoginResponse.self, from: data)
-                
-                if loginResponse.code == 200, let loginData = loginResponse.data {
+                let apiResponse = try JSONDecoder().decode(APIResponse<LoginResponse>.self, from: data)
+
+                if apiResponse.code == 200, let loginData = apiResponse.data {
                     // 保存token
-                    self.authToken = loginData.accessToken
-                    
+                    self.authToken = loginData.token
+
                     // 创建用户对象
                     let user = User(
-                        username: loginData.user.username ?? loginData.user.phone,
-                        email: loginData.user.email,
-                        phoneNumber: loginData.user.phone,
-                        avatar: loginData.user.avatarUrl,
+                        username: loginData.userInfo.nickname ?? loginData.userInfo.mobile,
+                        email: nil,
+                        phoneNumber: loginData.userInfo.mobile,
+                        avatar: loginData.userInfo.avatar,
                         loginMethod: .phone
                     )
-                    
+
                     return user
                 } else {
-                    throw NSError(domain: "AuthError", code: loginResponse.code, userInfo: [
-                        NSLocalizedDescriptionKey: loginResponse.message
+                    throw NSError(domain: "AuthError", code: apiResponse.code, userInfo: [
+                        NSLocalizedDescriptionKey: apiResponse.message
                     ])
                 }
             } else {
                 // 尝试解析错误响应
-                if let loginResponse = try? JSONDecoder().decode(LoginResponse.self, from: data) {
-                    throw NSError(domain: "AuthError", code: loginResponse.code, userInfo: [
-                        NSLocalizedDescriptionKey: loginResponse.message
+                if let apiResponse = try? JSONDecoder().decode(APIResponse<LoginResponse>.self, from: data) {
+                    throw NSError(domain: "AuthError", code: apiResponse.code, userInfo: [
+                        NSLocalizedDescriptionKey: apiResponse.message
                     ])
                 } else {
                     throw NSError(domain: "AuthError", code: httpResponse.statusCode, userInfo: [
@@ -462,14 +450,14 @@ class AuthManager: ObservableObject {
     
     // 发送验证码
     func sendVerificationCode(to phoneNumber: String) async -> Bool {
-        guard let url = URL(string: "\(apiBaseURL)/auth/send-sms-code") else {
+        guard let url = URL(string: "\(apiBaseURL)/user/api/auth/sms/send") else {
             DispatchQueue.main.async {
                 self.errorMessage = "无效的API地址"
             }
             return false
         }
         
-        let request = SendSmsCodeRequest(phone: phoneNumber, type: "login")
+        let request = SendSmsCodeRequest(mobile: phoneNumber)
         
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "POST"
@@ -490,7 +478,7 @@ class AuthManager: ObservableObject {
             }
             
             if httpResponse.statusCode == 200 {
-                let apiResponse = try JSONDecoder().decode(LoginResponse.self, from: data)
+                let apiResponse = try JSONDecoder().decode(APIResponse<SendCodeResponse>.self, from: data)
                 
                 if apiResponse.code == 200 {
                     return true
@@ -519,7 +507,7 @@ class AuthManager: ObservableObject {
         currentUser = nil
         isAuthenticated = false
         errorMessage = ""
-        
+
         // 清除存储的认证信息
         UserDefaults.standard.removeObject(forKey: userKey)
         UserDefaults.standard.removeObject(forKey: authKey)
@@ -530,5 +518,13 @@ class AuthManager: ObservableObject {
     // 检查登录状态
     func checkAuthStatus() {
         loadAuthState()
+    }
+
+    // MARK: - Token管理
+
+    /// 检查token是否有效（简化版本，因为新API没有refresh token机制）
+    /// - Returns: token有效返回true，否则返回false
+    func isTokenValid() -> Bool {
+        return authToken != nil && !authToken!.isEmpty
     }
 } 

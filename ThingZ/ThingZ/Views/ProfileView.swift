@@ -478,8 +478,8 @@ struct ProfileView: View {
             } message: {
                 Text(nicknameAlertMessage)
             }
-            .onChange(of: selectedImage) { image in
-                if let image = image {
+            .onChange(of: selectedImage) { oldValue, newValue in
+                if let image = newValue {
                     Task {
                         await updateUserAvatar(image)
                     }

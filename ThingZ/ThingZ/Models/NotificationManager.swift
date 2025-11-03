@@ -196,18 +196,27 @@ class NotificationManager: ObservableObject {
         scheduleSeasonalReminders(for: items)
     }
     
+    // 检查通知权限
+    func checkNotificationAuthorization(completion: @escaping (Bool) -> Void) {
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            DispatchQueue.main.async {
+                completion(settings.authorizationStatus == .authorized)
+            }
+        }
+    }
+    
     // 获取即将过期的物品
     func getExpiringItems(from items: [Item], daysAhead: Int = 7) -> [Item] {
         let calendar = Calendar.current
         let targetDate = calendar.date(byAdding: .day, value: daysAhead, to: Date()) ?? Date()
-        
+
         return items.filter { item in
             // 检查食品
             if let foodProperties = item.foodProperties {
                 let expirationDate = foodProperties.expirationDate
                 return expirationDate <= targetDate
             }
-            
+
             // 检查化妆品
             if let cosmeticsProperties = item.cosmeticsProperties,
                let openedDate = cosmeticsProperties.openedDate {
@@ -215,8 +224,88 @@ class NotificationManager: ObservableObject {
                 let expirationDate = calendar.date(byAdding: .month, value: shelfLife, to: openedDate) ?? Date()
                 return expirationDate <= targetDate
             }
-            
+
             return false
         }
+    }
+
+    // MARK: - API集成方法
+
+    /// 从API获取即将过期的物品并安排提醒
+    func scheduleRemindersFromAPI(daysAhead: Int = 7) async {
+        do {
+            // 获取即将过期的物品
+            let nearExpirationItems = try await ItemAPIService.shared.getNearExpirationItems(days: daysAhead)
+
+            // 为每个物品安排提醒
+            await MainActor.run {
+                for apiItem in nearExpirationItems {
+                    scheduleReminderForAPIItem(apiItem)
+                }
+            }
+        } catch {
+            print("从API获取即将过期物品失败: \(error.localizedDescription)")
+        }
+    }
+
+    /// 从API获取已过期的物品
+    func getExpiredItemsFromAPI() async -> [APIItem] {
+        do {
+            return try await ItemAPIService.shared.getExpiredItems()
+        } catch {
+            print("从API获取已过期物品失败: \(error.localizedDescription)")
+            return []
+        }
+    }
+
+    /// 为API物品安排提醒
+    private func scheduleReminderForAPIItem(_ item: APIItem) {
+        guard let expirationDateString = item.expirationDate,
+              let expirationDate = ISO8601DateFormatter().date(from: expirationDateString) else {
+            return
+        }
+
+        let now = Date()
+        let timeUntilExpiration = expirationDate.timeIntervalSince(now)
+
+        // 如果还没过期，设置提醒
+        if timeUntilExpiration > 0 {
+            // 提前1天提醒
+            if timeUntilExpiration > 86400 {
+                scheduleNotification(
+                    identifier: "item_expiry_\(item.id)",
+                    title: "物品即将过期",
+                    body: "\(item.name) 将在明天过期，请及时处理",
+                    date: Date(timeInterval: timeUntilExpiration - 86400, since: now)
+                )
+            }
+
+            // 当天提醒
+            scheduleNotification(
+                identifier: "item_expiry_today_\(item.id)",
+                title: "物品今天过期",
+                body: "\(item.name) 今天过期，请尽快处理",
+                date: expirationDate
+            )
+        }
+    }
+
+    /// 取消API物品的提醒
+    func cancelRemindersForAPIItem(itemId: String) {
+        let identifiers = [
+            "item_expiry_\(itemId)",
+            "item_expiry_today_\(itemId)"
+        ]
+
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: identifiers)
+    }
+
+    /// 刷新所有API物品的提醒
+    func refreshAPIReminders(daysAhead: Int = 7) async {
+        // 取消现有提醒
+        cancelAllReminders()
+
+        // 重新安排提醒
+        await scheduleRemindersFromAPI(daysAhead: daysAhead)
     }
 }

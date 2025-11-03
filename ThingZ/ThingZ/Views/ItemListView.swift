@@ -1,57 +1,51 @@
 import SwiftUI
 
 struct ItemListView: View {
-    @State private var items: [Item] = []
+    @StateObject private var viewModel = ItemListViewModel()
     @State private var searchText = ""
     @State private var showingAddItem = false
     @State private var showingItemDetail = false
-    @State private var selectedItem: Item?
+    @State private var selectedItem: APIItem?
     @State private var sortBy: SortOption = .name
     @State private var filterBy: FilterOption = .all
     @EnvironmentObject var dataManager: DataManager
-    
-    var filteredItems: [Item] {
-        var filtered = items
-        
+
+    var filteredItems: [APIItem] {
+        var filtered = viewModel.items
+
         // 搜索过滤
         if !searchText.isEmpty {
             filtered = filtered.filter { item in
                 item.name.localizedCaseInsensitiveContains(searchText) ||
-                item.type.displayName.localizedCaseInsensitiveContains(searchText)
+                item.category.localizedCaseInsensitiveContains(searchText)
             }
         }
-        
+
         // 类型过滤
         switch filterBy {
         case .food:
-            filtered = filtered.filter { $0.type == .food }
+            filtered = filtered.filter { $0.category == "食品" }
         case .clothing:
-            filtered = filtered.filter { $0.type == .clothing }
+            filtered = filtered.filter { $0.category == "服饰" }
         case .cosmetics:
-            filtered = filtered.filter { $0.type == .cosmetics }
+            filtered = filtered.filter { $0.category == "化妆品" }
         case .miscellaneous:
-            filtered = filtered.filter { $0.type == .miscellaneous }
+            filtered = filtered.filter { $0.category == "杂物" }
         case .all:
             break
         }
-        
+
         // 排序
         switch sortBy {
         case .name:
             return filtered.sorted(by: { $0.name < $1.name })
         case .type:
-            return filtered.sorted(by: { $0.type.displayName < $1.type.displayName })
+            return filtered.sorted(by: { $0.category < $1.category })
         case .dateAdded:
             return filtered.sorted(by: { $0.createdAt > $1.createdAt })
         case .expiration:
             return filtered.sorted { item1, item2 in
-                // 食品类型的过期比较
-                if let props1 = item1.foodProperties, let props2 = item2.foodProperties {
-                    return props1.expirationDate < props2.expirationDate
-                }
-                // 化妆品类型的过期比较
-                if let props1 = item1.cosmeticsProperties, let props2 = item2.cosmeticsProperties,
-                   let exp1 = props1.expirationDate, let exp2 = props2.expirationDate {
+                if let exp1 = item1.expirationDate, let exp2 = item2.expirationDate {
                     return exp1 < exp2
                 }
                 return false
@@ -185,8 +179,38 @@ struct ItemListView: View {
                 }
                     .padding(.horizontal, 16)
                 
+                // Loading状态
+                if viewModel.isLoading && viewModel.items.isEmpty {
+                    VStack {
+                        ProgressView("加载中...")
+                            .progressViewStyle(CircularProgressViewStyle(tint: Color(red: 1.0, green: 0.75, blue: 0.8)))
+                            .padding()
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+                // 错误状态
+                else if let errorMessage = viewModel.errorMessage, viewModel.items.isEmpty {
+                    VStack(spacing: 16) {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.system(size: 50))
+                            .foregroundColor(Color(red: 1.0, green: 0.6, blue: 0.6))
+                        Text(errorMessage)
+                            .foregroundColor(Color(red: 0.6, green: 0.4, blue: 0.3))
+                        Button("重试") {
+                            Task {
+                                await viewModel.loadItems(keyword: searchText.isEmpty ? nil : searchText)
+                            }
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 10)
+                        .background(Color(red: 1.0, green: 0.75, blue: 0.8))
+                        .foregroundColor(.white)
+                        .cornerRadius(10)
+                    }
+                    .padding(.top, 50)
+                }
                 // 物品列表
-                if filteredItems.isEmpty {
+                else if filteredItems.isEmpty {
                     ItemEmptyStateView()
                             .padding(.top, 50)
                 } else {
@@ -197,12 +221,37 @@ struct ItemListView: View {
                                 selectedItem = item
                                 showingItemDetail = true
                             }) {
-                                ItemRowView(item: item)
+                                    APIItemRowView(item: item)
                             }
                             .buttonStyle(PlainButtonStyle())
-                        }
+                                }
+
+                                // 加载更多指示器
+                                if viewModel.isLoadingMore {
+                                    HStack {
+                                        Spacer()
+                                        ProgressView()
+                                            .progressViewStyle(CircularProgressViewStyle(tint: Color(red: 1.0, green: 0.75, blue: 0.8)))
+                                        Text("加载更多...")
+                                            .foregroundColor(Color(red: 0.6, green: 0.4, blue: 0.3))
+                                        Spacer()
+                                    }
+                                    .padding()
+                                } else if viewModel.hasMore {
+                                    // 加载更多触发器
+                                    Color.clear
+                                        .frame(height: 10)
+                                        .onAppear {
+                                            Task {
+                                                await viewModel.loadMore(keyword: searchText.isEmpty ? nil : searchText)
+                                            }
+                                        }
+                                }
                             }
                             .padding(.horizontal, 16)
+                    }
+                    .refreshable {
+                        await viewModel.refresh(keyword: searchText.isEmpty ? nil : searchText)
                     }
                 }
                 
@@ -227,17 +276,23 @@ struct ItemListView: View {
             }
             .sheet(isPresented: $showingItemDetail) {
                 if let selectedItem = selectedItem {
-                    ItemDetailView(item: selectedItem)
+                    APIItemDetailView(item: selectedItem)
                 }
             }
         }
         .onAppear {
-            loadItems()
+            Task {
+                await viewModel.loadItems()
+            }
         }
-    }
-    
-    private func loadItems() {
-        items = dataManager.items
+        .onChange(of: searchText) { oldValue, newValue in
+            Task {
+                // 搜索时重新加载
+                if newValue.isEmpty || newValue.count >= 2 {
+                    await viewModel.loadItems(keyword: newValue.isEmpty ? nil : newValue)
+                }
+            }
+        }
     }
 }
 
@@ -298,13 +353,8 @@ struct ItemRowView: View {
                     .fontWeight(.semibold)
                     .foregroundColor(isClothingInWardrobe ? Color(red: 0.4, green: 0.2, blue: 0.5) : Color(red: 0.4, green: 0.2, blue: 0.1))
                 
-                // 显示容器信息
-                if let containerId = item.containerId,
-                   let container = dataManager.getContainer(withId: containerId) {
-                    Text("住在：\(container.name) 🏠")
-                        .font(.subheadline)
-                        .foregroundColor(Color(red: 0.6, green: 0.4, blue: 0.3))
-                }
+                // 显示容器信息 (API items use String containerId, not UUID)
+                // TODO: Consider using API to fetch container name instead of local lookup
                 
                 HStack {
                     Text(item.type.displayName)
@@ -480,6 +530,226 @@ enum FilterOption: String, CaseIterable {
     
     var displayName: String {
         return self.rawValue
+    }
+}
+
+// API物品行视图
+struct APIItemRowView: View {
+    let item: APIItem
+    @EnvironmentObject var dataManager: DataManager
+
+    var body: some View {
+        HStack(spacing: 16) {
+            // 物品图片或图标
+            ZStack {
+                if let imageUrl = item.imageUrl, !imageUrl.isEmpty {
+                    AsyncImage(url: URL(string: imageUrl)) { phase in
+                        switch phase {
+                        case .empty:
+                            ProgressView()
+                        case .success(let image):
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                        case .failure:
+                            Image(systemName: categoryIcon(for: item.category))
+                                .font(.title2)
+                                .foregroundColor(.white)
+                        @unknown default:
+                            EmptyView()
+                        }
+                    }
+                    .frame(width: 60, height: 60)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                } else {
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(
+                            LinearGradient(
+                                gradient: Gradient(colors: [
+                                    Color(red: 1.0, green: 0.82, blue: 0.86),
+                                    Color(red: 1.0, green: 0.75, blue: 0.8)
+                                ]),
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 60, height: 60)
+                        .shadow(
+                            color: Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.3),
+                            radius: 8,
+                            x: 0,
+                            y: 4
+                        )
+                        .overlay(
+                            Image(systemName: categoryIcon(for: item.category))
+                                .font(.title2)
+                                .foregroundColor(.white)
+                        )
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(item.name)
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
+
+                // 显示容器信息 (API items use String containerId, not UUID)
+                // TODO: Consider using API to fetch container name instead of local lookup
+
+                HStack {
+                    Text(item.category)
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(
+                            Capsule()
+                                .fill(Color(red: 1.0, green: 0.9, blue: 0.7))
+                        )
+                        .foregroundColor(Color(red: 0.8, green: 0.6, blue: 0.2))
+
+                    Spacer()
+
+                    // 状态显示
+                    if item.status == "TAKEN_OUT" {
+                        Text("已取出")
+                            .font(.caption)
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(
+                                Capsule()
+                                    .fill(Color(red: 0.6, green: 0.8, blue: 1.0))
+                            )
+                    }
+                }
+
+                // 显示过期日期
+                if let expirationDate = item.expirationDate {
+                    Text("到期：\(expirationDate)")
+                        .font(.caption)
+                        .foregroundColor(Color(red: 0.6, green: 0.4, blue: 0.3))
+                }
+            }
+
+            Spacer()
+
+            Image(systemName: "chevron.right")
+                .foregroundColor(Color(red: 1.0, green: 0.75, blue: 0.8))
+                .font(.caption)
+        }
+        .padding(.all, 16)
+        .background(
+            RoundedRectangle(cornerRadius: 18)
+                .fill(Color.white.opacity(0.8))
+                .shadow(
+                    color: Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.2),
+                    radius: 8,
+                    x: 0,
+                    y: 4
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18)
+                        .stroke(
+                            Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.3),
+                            lineWidth: 1
+                        )
+                )
+        )
+    }
+
+    private func categoryIcon(for category: String) -> String {
+        switch category {
+        case "食品":
+            return "fork.knife"
+        case "服饰":
+            return "tshirt"
+        case "化妆品":
+            return "paintbrush"
+        case "杂物":
+            return "square.grid.2x2"
+        default:
+            return "cube.box"
+        }
+    }
+}
+
+// API物品详情视图（临时简化版）
+struct APIItemDetailView: View {
+    let item: APIItem
+    @Environment(\.dismiss) var dismiss
+
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    // 图片
+                    if let imageUrl = item.imageUrl, !imageUrl.isEmpty {
+                        AsyncImage(url: URL(string: imageUrl)) { phase in
+                            switch phase {
+                            case .empty:
+                                ProgressView()
+                            case .success(let image):
+                                image
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                            case .failure:
+                                Image(systemName: "photo")
+                                    .font(.system(size: 50))
+                            @unknown default:
+                                EmptyView()
+                            }
+                        }
+                        .frame(maxHeight: 300)
+                        .frame(maxWidth: .infinity)
+                    }
+
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text(item.name)
+                            .font(.title)
+                            .fontWeight(.bold)
+
+                        if let description = item.description {
+                            Text(description)
+                                .font(.body)
+                                .foregroundColor(.secondary)
+                        }
+
+                        Divider()
+
+                        DetailRow(title: "分类", value: item.category)
+                        DetailRow(title: "状态", value: item.status)
+
+                        if let quantity = item.quantity, let unit = item.unit {
+                            DetailRow(title: "数量", value: "\(quantity) \(unit)")
+                        }
+
+                        if let brand = item.brand {
+                            DetailRow(title: "品牌", value: brand)
+                        }
+
+                        if let price = item.price {
+                            DetailRow(title: "价格", value: String(format: "¥%.2f", price))
+                        }
+
+                        if let expirationDate = item.expirationDate {
+                            DetailRow(title: "过期日期", value: expirationDate)
+                        }
+                    }
+                    .padding()
+                }
+            }
+            .navigationTitle("物品详情")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("关闭") {
+                        dismiss()
+                    }
+                }
+            }
+        }
     }
 }
 

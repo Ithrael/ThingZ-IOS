@@ -10,6 +10,9 @@ struct AddContainerView: View {
     @State private var capacity = 50
     @State private var showingImagePicker = false
     @State private var selectedImage: UIImage?
+    @State private var isLoading = false
+    @State private var errorMessage: String?
+    @State private var showingError = false
     
     var body: some View {
         NavigationView {
@@ -283,32 +286,43 @@ struct AddContainerView: View {
                         
                         // 保存按钮
                         VStack(spacing: 16) {
-                            Button(action: saveContainer) {
-                                Text("创建我的容器 🎉")
-                                    .font(.headline)
-                                    .fontWeight(.semibold)
-                                    .foregroundColor(.white)
-                                    .frame(maxWidth: .infinity)
-                                    .frame(height: 54)
-                                    .background(
-                                        LinearGradient(
-                                            gradient: Gradient(colors: [
-                                                Color(red: 1.0, green: 0.75, blue: 0.8),
-                                                Color(red: 1.0, green: 0.65, blue: 0.75)
-                                            ]),
-                                            startPoint: .leading,
-                                            endPoint: .trailing
-                                        )
-                                    )
-                                    .cornerRadius(20)
-                                    .shadow(
-                                        color: Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.4),
-                                        radius: 12,
-                                        x: 0,
-                                        y: 6
-                                    )
+                            Button(action: {
+                                Task {
+                                    await saveContainer()
+                                }
+                            }) {
+                                if isLoading {
+                                    ProgressView()
+                                        .tint(.white)
+                                        .frame(maxWidth: .infinity)
+                                        .frame(height: 54)
+                                } else {
+                                    Text("创建我的容器 🎉")
+                                        .font(.headline)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.white)
+                                        .frame(maxWidth: .infinity)
+                                        .frame(height: 54)
+                                }
                             }
-                            .disabled(name.isEmpty || location.isEmpty)
+                            .background(
+                                LinearGradient(
+                                    gradient: Gradient(colors: [
+                                        Color(red: 1.0, green: 0.75, blue: 0.8),
+                                        Color(red: 1.0, green: 0.65, blue: 0.75)
+                                    ]),
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .cornerRadius(20)
+                            .shadow(
+                                color: Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.4),
+                                radius: 12,
+                                x: 0,
+                                y: 6
+                            )
+                            .disabled(name.isEmpty || location.isEmpty || isLoading)
                             .scaleEffect(name.isEmpty || location.isEmpty ? 0.95 : 1.0)
                             .animation(.easeInOut(duration: 0.2), value: name.isEmpty || location.isEmpty)
                             .padding(.horizontal, 20)
@@ -344,21 +358,56 @@ struct AddContainerView: View {
             .sheet(isPresented: $showingImagePicker) {
                 SharedImagePicker(selectedImage: $selectedImage)
             }
+            .alert("错误", isPresented: $showingError) {
+                Button("确定", role: .cancel) {}
+            } message: {
+                Text(errorMessage ?? "未知错误")
+            }
         }
     }
-    
-    private func saveContainer() {
-        let imageData = selectedImage?.jpegData(compressionQuality: 0.8)
-        let container = Container(
-            name: name,
-            type: selectedType,
-            location: location,
-            capacity: capacity,
-            coverImageData: imageData
-        )
-        
-        dataManager.addContainer(container)
-        presentationMode.wrappedValue.dismiss()
+
+    private func saveContainer() async {
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            // 1. 先上传图片（如果有）
+            var imageUrl: String? = nil
+            if let image = selectedImage {
+                imageUrl = try await FileUploadService.shared.processAndUploadImage(
+                    image,
+                    type: .image
+                )
+            }
+
+            // 2. 构建CreateContainerRequest
+            let request = CreateContainerRequest(
+                name: name,
+                category: selectedType.apiCategory,
+                location: location.isEmpty ? nil : location,
+                description: nil,
+                capacity: capacity,
+                room: nil,
+                floor: nil,
+                isShareable: false,
+                isExpirationReminder: true,
+                imageUrl: imageUrl
+            )
+
+            // 3. 调用API创建容器
+            let _ = try await ContainerAPIService.shared.createContainer(request: request)
+
+            // 4. 成功后关闭页面
+            isLoading = false
+            presentationMode.wrappedValue.dismiss()
+
+        } catch {
+            // 5. 失败显示错误
+            isLoading = false
+            errorMessage = error.localizedDescription
+            showingError = true
+            print("创建容器失败: \(error)")
+        }
     }
 }
 
