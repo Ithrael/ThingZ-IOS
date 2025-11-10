@@ -2,8 +2,8 @@ import Foundation
 
 // MARK: - API配置
 struct APIConfig {
-    static let devBaseURL = "https://api.anyongtech.cn"
-    static let prodBaseURL = "https://api.anyongtech.cn"
+    static let devBaseURL = "https://api.anyongtech.cn/thingz"
+    static let prodBaseURL = "https://api.anyongtech.cn/thingz"
 
     // 根据需要切换环境
     static var baseURL: String {

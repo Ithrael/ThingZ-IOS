@@ -196,7 +196,7 @@ class AuthManager: ObservableObject {
     
     // 执行登录API请求
     private func performLogin(request: LoginRequest) async throws -> User {
-        guard let url = URL(string: "\(apiBaseURL)/user/login") else {
+        guard let url = URL(string: "\(apiBaseURL)/thingz/api/user/login") else {
             throw NSError(domain: "AuthError", code: -1, userInfo: [
                 NSLocalizedDescriptionKey: "无效的API地址"
             ])
@@ -325,7 +325,7 @@ class AuthManager: ObservableObject {
     
     // 执行短信登录API请求
     private func performSmsLogin(request: SmsLoginRequest) async throws -> User {
-        guard let url = URL(string: "\(apiBaseURL)/user/api/auth/sms/login") else {
+        guard let url = URL(string: "\(apiBaseURL)/thingz/api/user/sms-login") else {
             throw NSError(domain: "AuthError", code: -1, userInfo: [
                 NSLocalizedDescriptionKey: "无效的API地址"
             ])
@@ -450,7 +450,7 @@ class AuthManager: ObservableObject {
     
     // 发送验证码
     func sendVerificationCode(to phoneNumber: String) async -> Bool {
-        guard let url = URL(string: "\(apiBaseURL)/user/api/auth/sms/send") else {
+        guard let url = URL(string: "\(apiBaseURL)/thingz/api/user/send-sms-code") else {
             DispatchQueue.main.async {
                 self.errorMessage = "无效的API地址"
             }

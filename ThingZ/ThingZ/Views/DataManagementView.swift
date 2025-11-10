@@ -44,13 +44,7 @@ struct DataManagementView: View {
                         VStack(spacing: 24) {
                             // 数据统计
                             VStack(alignment: .leading, spacing: 20) {
-                                HStack {
-                                    Text("数据统计")
-                                        .font(.headline)
-                                        .fontWeight(.semibold)
-                                        .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
-                                    Spacer()
-                                }
+                                SectionTitle(title: "数据统计")
                                 
                                 InfoCard {
                                     VStack(spacing: 16) {
@@ -69,13 +63,7 @@ struct DataManagementView: View {
                             
                             // 数据管理
                             VStack(alignment: .leading, spacing: 20) {
-                                HStack {
-                                    Text("数据管理")
-                                        .font(.headline)
-                                        .fontWeight(.semibold)
-                                        .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
-                                    Spacer()
-                                }
+                                SectionTitle(title: "数据管理")
                                 
                                 VStack(spacing: 16) {
                                     // 备份数据
@@ -133,13 +121,7 @@ struct DataManagementView: View {
                             
                             // 数据安全
                             VStack(alignment: .leading, spacing: 20) {
-                                HStack {
-                                    Text("数据安全")
-                                        .font(.headline)
-                                        .fontWeight(.semibold)
-                                        .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
-                                    Spacer()
-                                }
+                                SectionTitle(title: "数据安全")
                                 
                                 InfoCard {
                                     VStack(alignment: .leading, spacing: 16) {

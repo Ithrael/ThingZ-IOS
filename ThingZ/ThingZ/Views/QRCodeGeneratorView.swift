@@ -5,12 +5,16 @@ struct QRCodeGeneratorView: View {
     let container: Container
     @State private var qrCodeImage: UIImage?
     @State private var showingShareSheet = false
-    @State private var showingSaveSuccess = false
-    @State private var showingPermissionAlert = false
     @State private var errorMessage: String?
     @State private var isGenerating = false
     @State private var isSaving = false
+    @State private var showingPermissionAlert = false
+    @State private var showingSaveSuccess = false
     @Environment(\.presentationMode) var presentationMode
+
+    private var shareText: String {
+        "容器: \(container.name)\n位置: \(container.location)"
+    }
     
     var body: some View {
         ZStack {
@@ -248,7 +252,6 @@ struct QRCodeGeneratorView: View {
         }
         .sheet(isPresented: $showingShareSheet) {
             if let qrCodeImage = qrCodeImage {
-                let shareText = "容器二维码 - \(container.name)\n位置: \(container.location)\n类型: \(container.type.displayName)"
                 ShareSheet(items: [shareText, qrCodeImage])
             }
         }
@@ -258,73 +261,28 @@ struct QRCodeGeneratorView: View {
             Text("二维码已保存到相册")
         }
         .alert("需要相册权限", isPresented: $showingPermissionAlert) {
-            Button("去设置", role: .none) {
-                if let settingsURL = URL(string: UIApplication.openSettingsURLString) {
-                    UIApplication.shared.open(settingsURL)
+            Button("取消", role: .cancel) { }
+            Button("去设置") {
+                if let settingsUrl = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(settingsUrl)
                 }
             }
-            Button("取消", role: .cancel) { }
         } message: {
             Text("请在设置中允许访问相册以保存二维码")
         }
-        .errorAlert($errorMessage)
     }
-    
+
     private func generateQRCode() {
-        guard let apiId = container.apiId else {
-            // 如果没有API ID，使用本地ID生成
-            DispatchQueue.global(qos: .userInitiated).async {
-                let generatedQRCode = QRCodeGenerator.generateContainerQRCode(container: container)
-
-                DispatchQueue.main.async {
-                    self.qrCodeImage = generatedQRCode
-                }
-            }
-            return
-        }
-
         isGenerating = true
 
-        Task {
-            do {
-                // 调用API生成二维码
-                let qrCodeUrl = try await ContainerAPIService.shared.generateQRCode(containerId: apiId)
+        // 在后台线程生成二维码
+        DispatchQueue.global(qos: .userInitiated).async {
+            let generatedQRCode = QRCodeGenerator.generateContainerQRCode(container: container)
 
-                // 使用返回的URL或containerId生成本地二维码
-                let qrCodeString = qrCodeUrl.isEmpty ? apiId : qrCodeUrl
-
-                await MainActor.run {
-                    if let data = qrCodeString.data(using: .utf8),
-                       let filter = CIFilter(name: "CIQRCodeGenerator") {
-                        filter.setValue(data, forKey: "inputMessage")
-                        filter.setValue("H", forKey: "inputCorrectionLevel")
-
-                        if let outputImage = filter.outputImage {
-                            let transform = CGAffineTransform(scaleX: 10, y: 10)
-                            let scaledImage = outputImage.transformed(by: transform)
-                            let context = CIContext()
-
-                            if let cgImage = context.createCGImage(scaledImage, from: scaledImage.extent) {
-                                qrCodeImage = UIImage(cgImage: cgImage)
-                            }
-                        }
-                    }
-                    isGenerating = false
-                }
-            } catch {
-                await MainActor.run {
-                    errorMessage = "生成二维码失败: \(error.localizedDescription)"
-                    isGenerating = false
-
-                    // 降级：使用本地方式生成
-                    DispatchQueue.global(qos: .userInitiated).async {
-                        let generatedQRCode = QRCodeGenerator.generateContainerQRCode(container: container)
-
-                        DispatchQueue.main.async {
-                            self.qrCodeImage = generatedQRCode
-                        }
-                    }
-                }
+            // 回到主线程更新UI
+            DispatchQueue.main.async {
+                self.qrCodeImage = generatedQRCode
+                self.isGenerating = false
             }
         }
     }

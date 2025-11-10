@@ -50,13 +50,7 @@ struct NotificationSettingsView: View {
                             
                             // 过期提醒设置
                             VStack(alignment: .leading, spacing: 20) {
-                                HStack {
-                                    Text("过期提醒")
-                                        .font(.headline)
-                                        .fontWeight(.semibold)
-                                        .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
-                                    Spacer()
-                                }
+                                SectionTitle(title: "过期提醒")
                                 
                                 SettingsCard {
                                     VStack(spacing: 20) {
@@ -106,13 +100,7 @@ struct NotificationSettingsView: View {
                             
                             // 每日摘要设置
                             VStack(alignment: .leading, spacing: 20) {
-                                HStack {
-                                    Text("每日摘要")
-                                        .font(.headline)
-                                        .fontWeight(.semibold)
-                                        .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
-                                    Spacer()
-                                }
+                                SectionTitle(title: "每日摘要")
                                 
                                 SettingsCard {
                                     VStack(spacing: 20) {
@@ -152,13 +140,7 @@ struct NotificationSettingsView: View {
                             
                             // 周报设置
                             VStack(alignment: .leading, spacing: 20) {
-                                HStack {
-                                    Text("周报")
-                                        .font(.headline)
-                                        .fontWeight(.semibold)
-                                        .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
-                                    Spacer()
-                                }
+                                SectionTitle(title: "周报")
                                 
                                 SettingsCard {
                                     // 启用周报

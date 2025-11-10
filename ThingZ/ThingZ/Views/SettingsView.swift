@@ -6,7 +6,7 @@ struct SettingsView: View {
     @State private var showingDataManagement = false
     @State private var showingNotificationSettings = false
     @State private var showingDeleteAlert = false
-    
+
     var body: some View {
         NavigationView {
             List {
@@ -20,7 +20,7 @@ struct SettingsView: View {
                         Text("\(dataManager.totalContainers)")
                             .foregroundColor(.secondary)
                     }
-                    
+
                     HStack {
                         Image(systemName: "list.bullet")
                             .foregroundColor(.green)
@@ -29,7 +29,7 @@ struct SettingsView: View {
                         Text("\(dataManager.totalItems)")
                             .foregroundColor(.secondary)
                     }
-                    
+
                     HStack {
                         Image(systemName: "exclamationmark.triangle")
                             .foregroundColor(.orange)
@@ -38,7 +38,7 @@ struct SettingsView: View {
                         Text("\(dataManager.getExpiringSoonItems().count)")
                             .foregroundColor(.secondary)
                     }
-                    
+
                     HStack {
                         Image(systemName: "xmark.circle")
                             .foregroundColor(.red)
@@ -48,7 +48,7 @@ struct SettingsView: View {
                             .foregroundColor(.secondary)
                     }
                 }
-                
+
                 // 应用设置
                 Section(header: Text("应用设置")) {
                     Button(action: {
@@ -64,7 +64,7 @@ struct SettingsView: View {
                         }
                     }
                     .foregroundColor(.primary)
-                    
+
                     Button(action: {
                         showingDataManagement = true
                     }) {
@@ -79,7 +79,7 @@ struct SettingsView: View {
                     }
                     .foregroundColor(.primary)
                 }
-                
+
                 // 关于
                 Section(header: Text("关于")) {
                     Button(action: {
@@ -95,7 +95,7 @@ struct SettingsView: View {
                         }
                     }
                     .foregroundColor(.primary)
-                    
+
                     HStack {
                         Image(systemName: "number")
                             .foregroundColor(.gray)
@@ -105,7 +105,7 @@ struct SettingsView: View {
                             .foregroundColor(.secondary)
                     }
                 }
-                
+
                 // 危险操作
                 Section(header: Text("危险操作")) {
                     Button(action: {
@@ -144,8 +144,6 @@ struct SettingsView: View {
         }
     }
 }
-
-
 
 #Preview {
     SettingsView()

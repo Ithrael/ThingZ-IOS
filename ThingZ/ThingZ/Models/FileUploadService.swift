@@ -123,7 +123,7 @@ class FileUploadService {
         return uploadResponse.url
     }
 
-    /// 上传图片（使用multipart/form-data方式）
+    /// 上传图片（使用base64方式，统一使用文档中的接口）
     /// - Parameters:
     ///   - image: UIImage对象
     ///   - type: 上传类型（头像或普通图片）
@@ -134,25 +134,8 @@ class FileUploadService {
         type: UploadFileType = .image,
         compressionQuality: CGFloat = 0.8
     ) async throws -> String {
-        // 将图片转换为JPEG数据
-        guard let imageData = image.jpegData(compressionQuality: compressionQuality) else {
-            throw APIError.networkError(NSError(
-                domain: "FileUploadError",
-                code: -1,
-                userInfo: [NSLocalizedDescriptionKey: "图片数据转换失败"]
-            ))
-        }
-
-        // 生成文件名
-        let filename = generateFilename(extension: "jpg")
-
-        // 上传文件
-        return try await uploadFile(
-            data: imageData,
-            filename: filename,
-            mimeType: "image/jpeg",
-            type: type
-        )
+        // 统一使用base64上传方式
+        return try await uploadImageBase64(image, compressionQuality: compressionQuality)
     }
 
     /// 上传文件数据
@@ -383,24 +366,45 @@ extension FileUploadService {
         // 调整图片尺寸
         let resizedImage = image.resized(to: maxSize) ?? image
 
-        // 压缩图片
-        guard let imageData = resizedImage.compressTo(maxSizeKB: maxSizeKB) else {
+        // 根据目标大小计算压缩质量
+        var compression: CGFloat = 0.8
+        guard var imageData = resizedImage.jpegData(compressionQuality: compression) else {
             throw APIError.networkError(NSError(
                 domain: "FileUploadError",
                 code: -1,
-                userInfo: [NSLocalizedDescriptionKey: "图片压缩失败"]
+                userInfo: [NSLocalizedDescriptionKey: "图片数据转换失败"]
             ))
         }
 
-        // 生成文件名
+        // 如果图片太大，降低质量
+        while imageData.count > maxSizeKB * 1024 && compression > 0.1 {
+            compression -= 0.1
+            if let newData = resizedImage.jpegData(compressionQuality: compression) {
+                imageData = newData
+            }
+        }
+
+        // 转换为base64并上传
+        let base64String = imageData.base64EncodedString()
         let filename = generateFilename(extension: "jpg")
 
-        // 上传文件
-        return try await uploadFile(
-            data: imageData,
-            filename: filename,
-            mimeType: "image/jpeg",
-            type: type
+        let request = ImageBase64UploadRequestDto(
+            base64: base64String,
+            fileName: filename,
+            fileType: "image/jpeg"
         )
+
+        let response: APIResponse<ImageUploadResponseDto> = try await APIService.shared.request(
+            endpoint: "/api/storage/uploadImg",
+            method: .POST,
+            body: request,
+            requiresAuth: true
+        )
+
+        guard response.code == 200, let uploadResponse = response.data else {
+            throw APIError.serverError(response.code, response.message)
+        }
+
+        return uploadResponse.url
     }
 }
