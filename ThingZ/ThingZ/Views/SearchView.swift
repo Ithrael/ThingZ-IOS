@@ -5,13 +5,34 @@ struct SearchView: View {
     @State private var searchText = ""
     @State private var selectedScope = 0
     @State private var selectedItemType: ItemType? = nil
-    
+    @State private var showingAdvancedFilters = false
+    @State private var selectedSortOption: SortOption = .nameAsc
+    @State private var selectedExpirationFilter: ExpirationFilter = .all
+    @State private var searchSuggestions: [String] = []
+    @State private var showingSuggestions = false
+
     let scopes = ["全部", "物品", "容器"]
+
+    enum SortOption: String, CaseIterable {
+        case nameAsc = "名称 A-Z"
+        case nameDesc = "名称 Z-A"
+        case dateNewest = "最新添加"
+        case dateOldest = "最早添加"
+        case expirationSoon = "即将过期"
+    }
+
+    enum ExpirationFilter: String, CaseIterable {
+        case all = "全部"
+        case expired = "已过期"
+        case expiringSoon = "即将过期"
+        case fresh = "新鲜"
+    }
     
     var searchResults: (items: [Item], containers: [Container]) {
-        let filteredItems: [Item]
-        let filteredContainers: [Container]
-        
+        var filteredItems: [Item]
+        var filteredContainers: [Container]
+
+        // 基础搜索和类型筛选
         if searchText.isEmpty {
             filteredItems = selectedItemType == nil ? dataManager.items : dataManager.getItems(ofType: selectedItemType!)
             filteredContainers = dataManager.containers
@@ -19,11 +40,71 @@ struct SearchView: View {
             filteredItems = dataManager.searchItems(query: searchText)
             filteredContainers = dataManager.searchContainers(query: searchText)
         }
-        
-        return (
-            items: selectedItemType == nil ? filteredItems : filteredItems.filter { $0.type == selectedItemType! },
-            containers: filteredContainers
-        )
+
+        // 类型筛选
+        if let itemType = selectedItemType {
+            filteredItems = filteredItems.filter { $0.type == itemType }
+        }
+
+        // 过期状态筛选
+        switch selectedExpirationFilter {
+        case .expired:
+            filteredItems = filteredItems.filter { $0.isExpired }
+        case .expiringSoon:
+            filteredItems = filteredItems.filter { $0.isExpiringSoon && !$0.isExpired }
+        case .fresh:
+            filteredItems = filteredItems.filter { !$0.isExpired && !$0.isExpiringSoon }
+        case .all:
+            break
+        }
+
+        // 排序
+        filteredItems = sortItems(filteredItems, by: selectedSortOption)
+        filteredContainers = sortContainers(filteredContainers)
+
+        return (items: filteredItems, containers: filteredContainers)
+    }
+
+    func sortItems(_ items: [Item], by option: SortOption) -> [Item] {
+        switch option {
+        case .nameAsc:
+            return items.sorted { $0.name < $1.name }
+        case .nameDesc:
+            return items.sorted { $0.name > $1.name }
+        case .dateNewest:
+            return items.sorted { $0.createdAt > $1.createdAt }
+        case .dateOldest:
+            return items.sorted { $0.createdAt < $1.createdAt }
+        case .expirationSoon:
+            return items.sorted { (item1, item2) in
+                // 已过期的排在前面
+                if item1.isExpired && !item2.isExpired { return true }
+                if !item1.isExpired && item2.isExpired { return false }
+                // 即将过期的排在前面
+                if item1.isExpiringSoon && !item2.isExpiringSoon { return true }
+                if !item1.isExpiringSoon && item2.isExpiringSoon { return false }
+                return item1.name < item2.name
+            }
+        }
+    }
+
+    func sortContainers(_ containers: [Container]) -> [Container] {
+        return containers.sorted { $0.name < $1.name }
+    }
+
+    func generateSearchSuggestions() {
+        let allItemNames = dataManager.items.map { $0.name }
+        let allContainerNames = dataManager.containers.map { $0.name }
+        let allNames = Set(allItemNames + allContainerNames)
+
+        if searchText.isEmpty {
+            searchSuggestions = []
+        } else {
+            searchSuggestions = allNames.filter { $0.lowercased().contains(searchText.lowercased()) }
+                .sorted()
+                .prefix(5)
+                .map { $0 }
+        }
     }
     
     var body: some View {
@@ -50,7 +131,7 @@ struct SearchView: View {
                             FilterChip(title: "全部", isSelected: selectedItemType == nil) {
                                 selectedItemType = nil
                             }
-                            
+
                             ForEach(ItemType.allCases, id: \.self) { type in
                                 FilterChip(title: type.displayName, isSelected: selectedItemType == type) {
                                     selectedItemType = type
@@ -60,6 +141,104 @@ struct SearchView: View {
                         .padding(.horizontal, 16)
                     }
                     .padding(.vertical, 12)
+
+                    // 高级筛选和排序工具栏
+                    if !searchText.isEmpty || selectedItemType != nil {
+                        HStack(spacing: Theme.Spacing.small) {
+                            // 高级筛选按钮
+                            Button(action: {
+                                showingAdvancedFilters.toggle()
+                            }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "line.3.horizontal.decrease.circle\(selectedExpirationFilter != .all ? ".fill" : "")")
+                                    Text("筛选")
+                                        .font(Theme.Fonts.caption1)
+                                }
+                                .foregroundColor(showingAdvancedFilters ? .white : Theme.Colors.primaryText)
+                                .padding(.horizontal, Theme.Spacing.small)
+                                .padding(.vertical, 6)
+                                .background(
+                                    Capsule()
+                                        .fill(showingAdvancedFilters ? Theme.Colors.pinkAccent : Color.white.opacity(0.8))
+                                )
+                            }
+
+                            // 排序选择器
+                            Menu {
+                                ForEach(SortOption.allCases, id: \.self) { option in
+                                    Button(action: {
+                                        selectedSortOption = option
+                                    }) {
+                                        HStack {
+                                            Text(option.rawValue)
+                                            if selectedSortOption == option {
+                                                Image(systemName: "checkmark")
+                                            }
+                                        }
+                                    }
+                                }
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "arrow.up.arrow.down")
+                                    Text(selectedSortOption.rawValue)
+                                        .font(Theme.Fonts.caption1)
+                                        .lineLimit(1)
+                                }
+                                .foregroundColor(Theme.Colors.primaryText)
+                                .padding(.horizontal, Theme.Spacing.small)
+                                .padding(.vertical, 6)
+                                .background(
+                                    Capsule()
+                                        .fill(Color.white.opacity(0.8))
+                                )
+                            }
+
+                            Spacer()
+
+                            // 结果计数
+                            Text("\(searchResults.items.count + searchResults.containers.count) 个结果")
+                                .font(Theme.Fonts.caption1)
+                                .foregroundColor(Theme.Colors.secondaryText)
+                        }
+                        .padding(.horizontal)
+                        .padding(.bottom, 8)
+                    }
+
+                    // 高级筛选面板
+                    if showingAdvancedFilters {
+                        VStack(spacing: Theme.Spacing.small) {
+                            Text("过期状态")
+                                .font(Theme.Fonts.caption1)
+                                .foregroundColor(Theme.Colors.secondaryText)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+
+                            HStack(spacing: 8) {
+                                ForEach(ExpirationFilter.allCases, id: \.self) { filter in
+                                    Button(action: {
+                                        selectedExpirationFilter = filter
+                                    }) {
+                                        Text(filter.rawValue)
+                                            .font(Theme.Fonts.caption1)
+                                            .foregroundColor(selectedExpirationFilter == filter ? .white : Theme.Colors.primaryText)
+                                            .padding(.horizontal, 12)
+                                            .padding(.vertical, 6)
+                                            .background(
+                                                Capsule()
+                                                    .fill(selectedExpirationFilter == filter ? Theme.Colors.pinkAccent : Color.white.opacity(0.8))
+                                            )
+                                    }
+                                }
+                            }
+                        }
+                        .padding()
+                        .background(
+                            RoundedRectangle(cornerRadius: Theme.CornerRadius.medium)
+                                .fill(Color.white.opacity(0.6))
+                        )
+                        .padding(.horizontal)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                        .animation(.easeInOut, value: showingAdvancedFilters)
+                    }
                     
                     // 搜索结果
                     if searchText.isEmpty && selectedItemType == nil {
@@ -78,6 +257,15 @@ struct SearchView: View {
             }
             .navigationTitle("寻找宝贝 🔍")
             .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    NavigationLink(destination: QRCodeScannerView()) {
+                        Image(systemName: "qrcode.viewfinder")
+                            .foregroundColor(Color(red: 1.0, green: 0.75, blue: 0.8))
+                            .font(.system(size: 18))
+                    }
+                }
+            }
         }
     }
 }

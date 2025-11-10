@@ -10,11 +10,9 @@ struct ContainerDetailView: View {
     @State private var containerDetail: APIContainerDetailResponse.APIContainer?
     @State private var showingAlert = false
     @State private var alertMessage = ""
-
-    
-    var items: [Item] {
-        dataManager.getItems(inContainer: container.id)
-    }
+    @State private var apiItems: [APIItem] = []
+    @State private var isLoadingItems = false
+    @State private var itemsErrorMessage: String?
     
     // 计算属性：获取要显示的容器信息
     private var displayContainer: Container {
@@ -79,7 +77,7 @@ struct ContainerDetailView: View {
     @MainActor
     private func refreshContainerData() async {
         isRefreshing = true
-        
+
         if let apiId = container.apiId,
            let detail = await dataManager.fetchContainerDetail(containerId: apiId) {
             self.containerDetail = detail
@@ -87,8 +85,35 @@ struct ContainerDetailView: View {
             self.alertMessage = "刷新容器信息失败，请稍后重试"
             self.showingAlert = true
         }
-        
+
+        // 同时刷新物品列表
+        await loadContainerItems()
+
         isRefreshing = false
+    }
+
+    /// 加载容器内的物品列表
+    private func loadContainerItems() async {
+        guard let apiId = container.apiId else {
+            return
+        }
+
+        isLoadingItems = true
+        itemsErrorMessage = nil
+
+        do {
+            let items = try await ItemAPIService.shared.getItemsByContainer(containerId: apiId)
+            await MainActor.run {
+                self.apiItems = items
+                self.isLoadingItems = false
+            }
+        } catch {
+            await MainActor.run {
+                self.itemsErrorMessage = error.localizedDescription
+                self.isLoadingItems = false
+                print("加载容器物品失败: \(error)")
+            }
+        }
     }
     
     var body: some View {
@@ -131,7 +156,7 @@ struct ContainerDetailView: View {
                                                     Color(red: 1.0, green: 0.82, blue: 0.86),
                                                     Color(red: 1.0, green: 0.75, blue: 0.8)
                                                 ]),
-                                                startPoint: .topLeading,
+                                                    startPoint: .topLeading,
                                                 endPoint: .bottomTrailing
                                             )
                                         )
@@ -248,20 +273,20 @@ struct ContainerDetailView: View {
                                                 .foregroundColor(.white)
                                         }
                                         
-                                        Text("\(items.count)/\(displayContainer.capacity)")
+                                        Text("\(apiItems.count)/\(displayContainer.capacity)")
                                             .font(.subheadline)
                                             .fontWeight(.bold)
                                             .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
-                                        
+
                                         Text("容量")
                                             .font(.caption)
                                             .foregroundColor(Color(red: 0.6, green: 0.4, blue: 0.3))
                                     }
                                 }
-                                
+
                                 // 容量进度条
                                 VStack(spacing: 8) {
-                                    let utilization = displayContainer.capacity > 0 ? Double(items.count) / Double(displayContainer.capacity) : 0
+                                    let utilization = displayContainer.capacity > 0 ? Double(apiItems.count) / Double(displayContainer.capacity) : 0
                                     let utilizationPercentage = Int(utilization * 100)
                                     let progressWidth = max(0, CGFloat(utilization) * UIScreen.main.bounds.width * 0.8)
                                     let progressColor = utilization > 0.8 ? Color(red: 1.0, green: 0.6, blue: 0.6) :
@@ -320,16 +345,41 @@ struct ContainerDetailView: View {
                                     .font(.headline)
                                     .fontWeight(.semibold)
                                     .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
-                                
-                                Text("(\(items.count))")
+
+                                Text("(\(apiItems.count))")
                                     .font(.subheadline)
                                     .foregroundColor(Color(red: 1.0, green: 0.75, blue: 0.8))
-                                
+
                                 Spacer()
                             }
                             .padding(.horizontal, 20)
-                            
-                            if items.isEmpty {
+
+                            if isLoadingItems {
+                                HStack {
+                                    Spacer()
+                                    ProgressView("加载物品中...")
+                                        .tint(Color(red: 1.0, green: 0.75, blue: 0.8))
+                                    Spacer()
+                                }
+                                .padding(.vertical, 40)
+                            } else if let errorMessage = itemsErrorMessage {
+                                VStack(spacing: 12) {
+                                    Text("加载失败")
+                                        .font(.subheadline)
+                                        .foregroundColor(Color(red: 0.6, green: 0.4, blue: 0.3))
+                                    Text(errorMessage)
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    Button("重试") {
+                                        Task {
+                                            await loadContainerItems()
+                                        }
+                                    }
+                                    .foregroundColor(Color(red: 1.0, green: 0.75, blue: 0.8))
+                                }
+                                .padding(.vertical, 40)
+                                .padding(.horizontal, 20)
+                            } else if apiItems.isEmpty {
                                 ContainerEmptyStateView(
                                     title: "容器还是空的呢",
                                     message: "快去添加一些宝贝物品吧～",
@@ -338,8 +388,8 @@ struct ContainerDetailView: View {
                                 .padding(.horizontal, 20)
                             } else {
                                 LazyVStack(spacing: 12) {
-                                    ForEach(items) { item in
-                                        ContainerItemRowView(item: item)
+                                    ForEach(apiItems, id: \.id) { item in
+                                        ContainerAPIItemRowView(item: item)
                                     }
                                 }
                                 .padding(.horizontal, 20)
@@ -365,11 +415,19 @@ struct ContainerDetailView: View {
                 }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("完成") {
-                        presentationMode.wrappedValue.dismiss()
+                    HStack(spacing: 16) {
+                        NavigationLink(destination: QRCodeGeneratorView(container: displayContainer)) {
+                            Image(systemName: "qrcode")
+                                .foregroundColor(Color(red: 1.0, green: 0.75, blue: 0.8))
+                                .font(.system(size: 18))
+                        }
+                        
+                        Button("完成") {
+                            presentationMode.wrappedValue.dismiss()
+                        }
+                        .foregroundColor(Color(red: 1.0, green: 0.75, blue: 0.8))
+                        .fontWeight(.medium)
                     }
-                    .foregroundColor(Color(red: 1.0, green: 0.75, blue: 0.8))
-                    .fontWeight(.medium)
                 }
             }
             .sheet(isPresented: $showingEditView) {
@@ -383,6 +441,9 @@ struct ContainerDetailView: View {
             }
             .onAppear {
                 loadContainerDetail()
+                Task {
+                    await loadContainerItems()
+                }
             }
             .alert("提示", isPresented: $showingAlert) {
                 Button("确定", role: .cancel) { }
@@ -393,10 +454,10 @@ struct ContainerDetailView: View {
     }
 
 
-// 容器内物品行视图
+// 容器内物品行视图（本地数据）
 struct ContainerItemRowView: View {
     let item: Item
-    
+
     var body: some View {
         HStack(spacing: 16) {
             // 物品图标
@@ -419,7 +480,7 @@ struct ContainerItemRowView: View {
                         x: 0,
                         y: 3
                     )
-                
+
                 if let image = item.image {
                     Image(uiImage: image)
                         .resizable()
@@ -432,13 +493,13 @@ struct ContainerItemRowView: View {
                         .foregroundColor(.white)
                 }
             }
-            
+
             VStack(alignment: .leading, spacing: 4) {
                 Text(item.name)
                     .font(.subheadline)
                     .fontWeight(.semibold)
                     .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
-                
+
                 Text(item.type.displayName)
                     .font(.caption)
                     .fontWeight(.medium)
@@ -449,7 +510,7 @@ struct ContainerItemRowView: View {
                             .fill(Color(red: 1.0, green: 0.9, blue: 0.7))
                     )
                     .foregroundColor(Color(red: 0.8, green: 0.6, blue: 0.2))
-                
+
                 if !item.notes.isEmpty {
                     Text(item.notes)
                         .font(.caption)
@@ -457,9 +518,9 @@ struct ContainerItemRowView: View {
                         .lineLimit(1)
                 }
             }
-            
+
             Spacer()
-            
+
             VStack(spacing: 4) {
                 if item.isExpired {
                     Text("过期")
@@ -484,7 +545,148 @@ struct ContainerItemRowView: View {
                         )
                         .foregroundColor(.white)
                 }
-                
+
+                Image(systemName: "chevron.right")
+                    .foregroundColor(Color(red: 1.0, green: 0.75, blue: 0.8))
+                    .font(.caption)
+            }
+        }
+        .padding(.all, 16)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.white.opacity(0.8))
+                .shadow(
+                    color: Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.2),
+                    radius: 6,
+                    x: 0,
+                    y: 3
+                )
+        )
+    }
+}
+
+// 容器内物品行视图（API数据）
+struct ContainerAPIItemRowView: View {
+    let item: APIItem
+
+    // 将API分类字符串转换为ItemType
+    private var itemType: ItemType {
+        ItemType.from(apiCategory: item.category)
+    }
+
+    // 检查是否过期
+    private var isExpired: Bool {
+        guard let expirationDateString = item.expirationDate else { return false }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        guard let expirationDate = formatter.date(from: expirationDateString) else { return false }
+        return expirationDate < Date()
+    }
+
+    // 检查是否快过期（7天内）
+    private var isExpiringSoon: Bool {
+        guard let expirationDateString = item.expirationDate else { return false }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        guard let expirationDate = formatter.date(from: expirationDateString) else { return false }
+        let daysUntilExpiration = Calendar.current.dateComponents([.day], from: Date(), to: expirationDate).day ?? 0
+        return daysUntilExpiration >= 0 && daysUntilExpiration <= 7
+    }
+
+    var body: some View {
+        HStack(spacing: 16) {
+            // 物品图标
+            ZStack {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color(red: 1.0, green: 0.82, blue: 0.86),
+                                Color(red: 1.0, green: 0.75, blue: 0.8)
+                            ]),
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 50, height: 50)
+                    .shadow(
+                        color: Color(red: 1.0, green: 0.75, blue: 0.8).opacity(0.3),
+                        radius: 6,
+                        x: 0,
+                        y: 3
+                    )
+
+                if let imageUrl = item.imageUrl, let url = URL(string: imageUrl) {
+                    AsyncImage(url: url) { image in
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: 45, height: 45)
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                    } placeholder: {
+                        Image(systemName: itemType.icon)
+                            .font(.title3)
+                            .foregroundColor(.white)
+                    }
+                } else {
+                    Image(systemName: itemType.icon)
+                        .font(.title3)
+                        .foregroundColor(.white)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(item.name)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
+
+                Text(itemType.displayName)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 2)
+                    .background(
+                        Capsule()
+                            .fill(Color(red: 1.0, green: 0.9, blue: 0.7))
+                    )
+                    .foregroundColor(Color(red: 0.8, green: 0.6, blue: 0.2))
+
+                if let description = item.description, !description.isEmpty {
+                    Text(description)
+                        .font(.caption)
+                        .foregroundColor(Color(red: 0.6, green: 0.4, blue: 0.3))
+                        .lineLimit(1)
+                }
+            }
+
+            Spacer()
+
+            VStack(spacing: 4) {
+                if isExpired {
+                    Text("过期")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                        .background(
+                            Capsule()
+                                .fill(Color(red: 1.0, green: 0.6, blue: 0.6))
+                        )
+                        .foregroundColor(.white)
+                } else if isExpiringSoon {
+                    Text("快过期")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                        .background(
+                            Capsule()
+                                .fill(Color(red: 1.0, green: 0.8, blue: 0.4))
+                        )
+                        .foregroundColor(.white)
+                }
+
                 Image(systemName: "chevron.right")
                     .foregroundColor(Color(red: 1.0, green: 0.75, blue: 0.8))
                     .font(.caption)

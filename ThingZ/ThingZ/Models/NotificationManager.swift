@@ -17,6 +17,13 @@ class NotificationManager: ObservableObject {
             }
         }
     }
+
+    // 检查通知权限
+    func checkNotificationAuthorization(completion: @escaping (Bool) -> Void) {
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            completion(settings.authorizationStatus == .authorized)
+        }
+    }
     
     // 安排食品过期提醒
     func scheduleExpirationReminders(for items: [Item]) {

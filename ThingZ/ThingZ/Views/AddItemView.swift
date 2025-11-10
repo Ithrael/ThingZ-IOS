@@ -10,7 +10,10 @@ struct AddItemView: View {
     @State private var notes = ""
     @State private var selectedImage: UIImage?
     @State private var showingImagePicker = false
-    
+    @State private var isLoading = false
+    @State private var errorMessage: String?
+    @State private var showingError = false
+
     // 衣物属性
     @State private var clothingType = ClothingType.top
     @State private var season = Season.allSeasons
@@ -138,73 +141,128 @@ struct AddItemView: View {
                 }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("保存") {
-                        saveItem()
+                    if isLoading {
+                        ProgressView()
+                    } else {
+                        Button("保存") {
+                            Task {
+                                await saveItem()
+                            }
+                        }
+                        .disabled(name.isEmpty || selectedContainer == nil)
                     }
-                    .disabled(name.isEmpty || selectedContainer == nil)
                 }
             }
             .sheet(isPresented: $showingImagePicker) {
                 SharedImagePicker(selectedImage: $selectedImage)
             }
+            .alert("错误", isPresented: $showingError) {
+                Button("确定", role: .cancel) {}
+            } message: {
+                Text(errorMessage ?? "未知错误")
+            }
         }
     }
-    
-    private func saveItem() {
+
+    private func saveItem() async {
         guard let container = selectedContainer else { return }
-        
-        let imageData = selectedImage?.jpegData(compressionQuality: 0.8)
-        var item = Item(
-            name: name,
-            type: selectedType,
-            imageData: imageData,
-            notes: notes,
-            containerId: container.id
-        )
-        
-        // 根据类型设置特有属性
-        switch selectedType {
-        case .clothing:
-            let properties = ClothingProperties(
-                clothingType: clothingType,
-                season: season,
-                color: color,
-                material: material,
-                brand: clothingBrand
+
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            // 1. 先上传图片（如果有）
+            var imageUrl: String? = nil
+            if let image = selectedImage {
+                imageUrl = try await FileUploadService.shared.processAndUploadImage(
+                    image,
+                    type: .image
+                )
+            }
+
+            // 2. 获取分类字符串
+            let categoryString = getCategoryString(for: selectedType)
+
+            // 3. 准备日期字符串
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd"
+            let expirationDateString: String?
+            let purchaseDateString: String?
+
+            switch selectedType {
+            case .food:
+                expirationDateString = formatter.string(from: expirationDate)
+                purchaseDateString = nil
+            case .miscellaneous:
+                expirationDateString = nil
+                purchaseDateString = hasPurchaseDate && purchaseDate != nil ? formatter.string(from: purchaseDate!) : nil
+            default:
+                expirationDateString = nil
+                purchaseDateString = nil
+            }
+
+            // 4. 准备品牌和型号
+            let brandString: String?
+            let modelString: String?
+            switch selectedType {
+            case .clothing:
+                brandString = clothingBrand.isEmpty ? nil : clothingBrand
+                modelString = nil
+            case .cosmetics:
+                brandString = cosmeticsBrand.isEmpty ? nil : cosmeticsBrand
+                modelString = nil
+            case .miscellaneous:
+                brandString = miscBrand.isEmpty ? nil : miscBrand
+                modelString = model.isEmpty ? nil : model
+            default:
+                brandString = nil
+                modelString = nil
+            }
+
+            // 5. 组装CreateItemRequest
+            let request = CreateItemRequest(
+                name: name,
+                category: categoryString,
+                containerId: container.id.uuidString,
+                quantity: selectedType == .food ? quantity : nil,
+                unit: selectedType == .food && !unit.isEmpty ? unit : nil,
+                imageUrl: imageUrl,
+                description: notes.isEmpty ? nil : notes,
+                purchaseDate: purchaseDateString,
+                expirationDate: expirationDateString,
+                price: nil,
+                brand: brandString,
+                model: modelString,
+                status: "IN_CONTAINER"
             )
-            item.updateClothingProperties(properties)
-            
-        case .food:
-            let properties = FoodProperties(
-                expirationDate: expirationDate,
-                quantity: quantity,
-                unit: unit,
-                foodType: foodType,
-                storageCondition: storageCondition
-            )
-            item.updateFoodProperties(properties)
-            
-        case .cosmetics:
-            let properties = CosmeticsProperties(
-                cosmeticsType: cosmeticsType,
-                openedDate: hasOpenedDate ? openedDate : nil,
-                shelfLifeAfterOpening: shelfLifeAfterOpening,
-                brand: cosmeticsBrand
-            )
-            item.updateCosmeticsProperties(properties)
-            
-        case .miscellaneous:
-            let properties = MiscellaneousProperties(
-                category: category,
-                brand: miscBrand,
-                model: model,
-                purchaseDate: hasPurchaseDate ? purchaseDate : nil
-            )
-            item.updateMiscellaneousProperties(properties)
+
+            // 6. 调用API创建物品
+            let _ = try await ItemAPIService.shared.createItem(request: request)
+
+            // 7. 成功后关闭页面
+            isLoading = false
+            presentationMode.wrappedValue.dismiss()
+
+        } catch {
+            // 8. 失败显示错误
+            isLoading = false
+            errorMessage = error.localizedDescription
+            showingError = true
+            print("创建物品失败: \(error)")
         }
-        
-        dataManager.addItem(item)
-        presentationMode.wrappedValue.dismiss()
+    }
+
+    private func getCategoryString(for type: ItemType) -> String {
+        switch type {
+        case .food:
+            return "食品"
+        case .clothing:
+            return "服饰"
+        case .cosmetics:
+            return "化妆品"
+        case .miscellaneous:
+            return "杂物"
+        }
     }
 }
 
